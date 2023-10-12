@@ -13,18 +13,22 @@ void buzzer_on(const uint8_t tone) { // Tutorial 12
     static const uint16_t periods[4] = {TONE1_Ehigh_PER, TONE2_Csharp_PER, TONE3_A_PER, TONE4_Elow_PER};
     if (tone == 0) {
         TCA0.SINGLE.PERBUF = periods[0];
+        TCA0.SINGLE.CMP1BUF = periods[0];
         TCA0.SINGLE.CMP0BUF = (TCA0.SINGLE.PERBUF >> 1);
     }
     else if (tone == 1) {
         TCA0.SINGLE.PERBUF = periods[1];
+        TCA0.SINGLE.CMP1BUF = periods[1];
         TCA0.SINGLE.CMP0BUF = (TCA0.SINGLE.PERBUF >> 1);
     }
     else if (tone == 2) {
         TCA0.SINGLE.PERBUF = periods[2];
+        TCA0.SINGLE.CMP1BUF = periods[2];
         TCA0.SINGLE.CMP0BUF = (TCA0.SINGLE.PERBUF >> 1);
     }
     else if (tone == 3) {
         TCA0.SINGLE.PERBUF = periods[3];
+        TCA0.SINGLE.CMP1BUF = periods[3];
         TCA0.SINGLE.CMP0BUF = (TCA0.SINGLE.PERBUF >> 1);
     }
 }
