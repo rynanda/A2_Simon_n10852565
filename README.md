@@ -3,5 +3,5 @@ To-do:
   - Playing vs. not playing states
   - SUCCESS/FAIL patterns
   - Display user score as decimal number from 0-99
-  - Gameplay through UART
+  - Gameplay through UART, including INC FREQ and DEC FREQ
   - High score table
