@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"buzzer.h": "c",
+			"qutyserial.h": "c"
+		}
+	}
+}
