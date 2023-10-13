@@ -77,7 +77,7 @@ void pwm_init(void) { // Tutorial 8
     TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV1_gc;      // CLK_PER select, /1 prescaler (3.33 MHz)
     TCA0.SINGLE.CTRLB = TCA_SINGLE_WGMODE_SINGLESLOPE_gc | TCA_SINGLE_CMP1EN_bm | TCA_SINGLE_CMP0EN_bm; // Single-slope PWM mode, WO1 and WO0 enable
     TCA0.SINGLE.PER = 7161;                             // 465 Hz (A) is ~7161.29 clocks @ 3.33 MHz
-    TCA0.SINGLE.CMP1 = 7161;                            // Maximum brightness -> 100% duty cycle
+    TCA0.SINGLE.CMP1 = 0;                               // off initially, Maximum brightness -> 100% duty cycle
     TCA0.SINGLE.CMP0 = 0;                               // BUZZER off initially -> 0% duty cycle || Max loudness = 50% duty cycle
     TCA0.SINGLE.CTRLA |= TCA_SINGLE_ENABLE_bm;          // Enable TCA0
 
@@ -153,61 +153,102 @@ int main(void) {
 }
 
 ISR(TCB0_INT_vect) { // EXT5 (?)
-    static uint16_t count = 0;
 
+    static uint16_t count = 0;
     static int user_playing = 0;
     static int user_success = 0;
 
-    // printf("%d\n", (playback_delay >> 1));
-    // printf("%d\n", to_play);
-
-    if (to_play == 1) {
-        buzzer_on(0);
-        // spi_write(0b10111110);
-        if (count != (playback_delay >> 1)) {
-            count++;
-        }
-        else {
-            next();
-            tone_sequence(&STEP);
-            count = 0;
-        }
-    }
-    else if (to_play == 2) {
-        buzzer_on(1);
-        // spi_write(0b11101011);
-        if (count != (playback_delay >> 1)) {
-            count++;
-        }
-        else {
-            next();
-            tone_sequence(&STEP);
-            count = 0;
-        }
-    }
-    else if (to_play == 3) {
-        buzzer_on(2);
-        // spi_write(0b00111110);
-        if (count != (playback_delay >> 1)) {
-            count++;
-        }
-        else {
-            next();
-            tone_sequence(&STEP);
-            count = 0;
-        }
-    }
-    else if (to_play == 4) {
-        buzzer_on(3);
-        // spi_write(0b01101011);
-        if (count != (playback_delay >> 1)) {
-            count++;
-        }
-        else {
-            next();
-            tone_sequence(&STEP);
-            count = 0;
-        }
+    switch (tone_state) {
+        case WAIT:
+            if (to_play == 1) {
+                buzzer_on(0);
+                if (count != (playback_delay >> 1)) {
+                    count++;
+                }
+                else {
+                    next();
+                    tone_sequence(&STEP);
+                    count = 0;
+                    tone_state = to_play;
+                }
+            }
+            else if (to_play == 2) {
+                buzzer_on(1);
+                if (count != (playback_delay >> 1)) {
+                    count++;
+                }
+                else {
+                    next();
+                    tone_sequence(&STEP);
+                    count = 0;
+                    tone_state = to_play;
+                }
+            }
+            else if (to_play == 3) {
+                buzzer_on(2);
+                if (count != (playback_delay >> 1)) {
+                    count++;
+                }
+                else {
+                    next();
+                    tone_sequence(&STEP);
+                    count = 0;
+                    tone_state = to_play;
+                }
+            }
+            else if (to_play == 4) {
+                buzzer_on(3);
+                if (count != (playback_delay >> 1)) {
+                    count++;
+                }
+                else {
+                    next();
+                    tone_sequence(&STEP);
+                    count = 0;
+                    tone_state = to_play;
+                }
+            }
+            break;
+        case TONE1_Ehigh:
+            buzzer_off();
+            if (count != (playback_delay >> 1)) {
+                count++;
+            }
+            else {
+                count = 0;
+                tone_state = WAIT;
+            }
+            break;
+        case TONE2_Csharp:
+            buzzer_off();
+            if (count != (playback_delay >> 1)) {
+                count++;
+            }
+            else {
+                count = 0;
+                tone_state = WAIT;
+            }
+            break;
+        case TONE3_A:
+            buzzer_off();
+            if (count != (playback_delay >> 1)) {
+                count++;
+            }
+            else {
+                count = 0;
+                tone_state = WAIT;
+            }
+            break;
+        case TONE4_Elow:
+            buzzer_off();
+            if (count != (playback_delay >> 1)) {
+                count++;
+            }
+            else {
+                count = 0;
+                tone_state = WAIT;
+            }
+            break;
     }
 
     TCB0.INTFLAGS = TCB_CAPT_bm;        // Acknowledge interrupt
