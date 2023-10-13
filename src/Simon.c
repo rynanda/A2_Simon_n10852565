@@ -7,15 +7,24 @@
 #include <stdint.h>
 #include "uart.h"
 #include "spi.h"
-#include "timer.h"
+// #include "timer.h"
 #include "buttons.h"
 #include "buzzer.h"
+#include "qutyserial.h"
 // #include "initialisation.h"
 
 // Initialise global variables
 uint32_t STATE_LSFR = 0x10852565;           // Pseudo-random sequence seeded by student #
 uint32_t STEP;
 uint8_t to_play;
+uint8_t result;
+uint16_t sequence_length = 1;               // Same as user_score
+// uint16_t user_score = sequence_length;
+uint8_t correct_tones[256];
+uint8_t user_tones[256];
+uint8_t *c = correct_tones;
+uint8_t *u = user_tones;
+static uint32_t playback_delay;
 
 typedef enum { // Tutorial 10, Tutorial 12
     WAIT = 0,
@@ -24,6 +33,8 @@ typedef enum { // Tutorial 10, Tutorial 12
     TONE3_A = 3,
     TONE4_Elow = 4
 } TONE_STATES;
+
+TONE_STATES tone_state = WAIT;
 
 // Generate next sequence (tutorial 6)
 void next(void) {
@@ -94,15 +105,16 @@ void adc_init(void) { // Tutorial 8 // For playback delay -> scaling to between 
     ADC0.COMMAND = ADC_MODE_SINGLE_8BIT_gc | ADC_START_IMMEDIATE_gc;    // 8-bit single conversion mode, start sampling immediately
 }
 
+void timer_init(void) { //  Tutorial 9
+    cli();
+    TCB0.CTRLB = TCB_CNTMODE_INT_gc;
+    TCB0.CCMP = 3333;                   // Set interval for 1ms (3333 clocks @ 3.3 MHz)
+    TCB0.INTCTRL = TCB_CAPT_bm;         // CAPT interrupt enable
+    TCB0.CTRLA = TCB_ENABLE_bm;         // Enable
+    sei();
+}
+
 int main(void) {
-    uint8_t result;
-    uint16_t sequence_length = 1;
-    uint16_t user_score = sequence_length;
-    uint8_t correct_tones[65535];
-    uint8_t user_tones[65535];
-    uint8_t *c = correct_tones;
-    uint8_t *u = user_tones;
-    TONE_STATES tone_state = WAIT;
     
     cli();
     uart_init();
@@ -111,13 +123,14 @@ int main(void) {
     adc_init();
     buttons_init();
     // timer_init();
+    serial_init();
     sei();
+    
+    next();
+    tone_sequence(&STEP);
 
     while(1) {
-        static int user_playing = 0;
-        static int user_success = 0;
-        
-        static uint32_t playback_delay;                         // In milliseconds(ms)
+        // static uint32_t playback_delay;                      // In milliseconds(ms)
         result = ADC0.RESULT;                                   // Get potentiometer reading (w/o reversing direction like TUT8)
         playback_delay = ((uint32_t)1750 * (uint32_t)result); 
         playback_delay = (playback_delay >> (uint32_t)8);       // Scale to between 0-1750 ms (with the line above)
@@ -135,533 +148,67 @@ int main(void) {
         pb_changed = pb_state ^ pb_state_prev;
         pb_falling_edge = pb_changed & ~pb_state;
         pb_rising_edge = pb_changed & pb_state;
-
-        if (user_playing == 0) {
-            uint16_t num_tones_to_play = sequence_length;
-            next();
-            tone_sequence(&STEP);
-            while (num_tones_to_play != 0) {
-                switch(tone_state) {
-                    case WAIT:
-                        if (to_play == TONE1_Ehigh) {
-                            tone_state = TONE1_Ehigh;
-                            spi_write(0b10111110);
-                            // buzzer_on(0);
-                            c[sequence_length - 1] = TONE1_Ehigh;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        else if (to_play == TONE2_Csharp) {
-                            tone_state = TONE2_Csharp;
-                            spi_write(0b11101011);
-                            // buzzer_on(1);
-                            c[sequence_length - 1] = TONE2_Csharp;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        else if (to_play == TONE3_A) {
-                            tone_state = TONE3_A;
-                            spi_write(0b00111110);
-                            // buzzer_on(2);
-                            c[sequence_length - 1] = TONE3_A;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        else {
-                            tone_state = TONE4_Elow;
-                            spi_write(0b01101011);
-                            // buzzer_on(3);
-                            c[sequence_length - 1] = TONE4_Elow;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        break;
-                    case TONE1_Ehigh:
-                        if (to_play == TONE1_Ehigh) {
-                            tone_state = TONE1_Ehigh;
-                            spi_write(0b10111110);
-                            // buzzer_on(0);
-                            c[sequence_length - 1] = TONE1_Ehigh;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        else if (to_play == TONE2_Csharp) {
-                            tone_state = TONE2_Csharp;
-                            spi_write(0b11101011);
-                            // buzzer_on(1);
-                            c[sequence_length - 1] = TONE2_Csharp;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        else if (to_play == TONE3_A) {
-                            tone_state = TONE3_A;
-                            spi_write(0b00111110);
-                            // buzzer_on(2);
-                            c[sequence_length - 1] = TONE3_A;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        else {
-                            tone_state = TONE4_Elow;
-                            spi_write(0b01101011);
-                            // buzzer_on(3);
-                            c[sequence_length - 1] = TONE4_Elow;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        break;
-                    case TONE2_Csharp:
-                        if (to_play == TONE1_Ehigh) {
-                            tone_state = TONE1_Ehigh;
-                            spi_write(0b10111110);
-                            // buzzer_on(0);
-                            c[sequence_length - 1] = TONE1_Ehigh;
-                            num_tones_to_play--;
-                        }
-                        else if (to_play == TONE2_Csharp) {
-                            tone_state = TONE2_Csharp;
-                            spi_write(0b11101011);
-                            // buzzer_on(1);
-                            c[sequence_length - 1] = TONE2_Csharp;
-                            num_tones_to_play--;
-                        }
-                        else if (to_play == TONE3_A) {
-                            tone_state = TONE3_A;
-                            spi_write(0b00111110);
-                            // buzzer_on(2);
-                            c[sequence_length - 1] = TONE3_A;
-                            num_tones_to_play--;
-                        }
-                        else {
-                            tone_state = TONE4_Elow;
-                            spi_write(0b01101011);
-                            // buzzer_on(3);
-                            c[sequence_length - 1] = TONE4_Elow;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        break;
-                    case TONE3_A:
-                        if (to_play == TONE1_Ehigh) {
-                            tone_state = TONE1_Ehigh;
-                            spi_write(0b10111110);
-                            // buzzer_on(0);
-                            c[sequence_length - 1] = TONE1_Ehigh;
-                            num_tones_to_play--;
-                        }
-                        else if (to_play == TONE2_Csharp) {
-                            tone_state = TONE2_Csharp;
-                            spi_write(0b11101011);
-                            // buzzer_on(1);
-                            c[sequence_length - 1] = TONE2_Csharp;
-                            num_tones_to_play--;
-                        }
-                        else if (to_play == TONE3_A) {
-                            tone_state = TONE3_A;
-                            spi_write(0b00111110);
-                            // buzzer_on(2);
-                            c[sequence_length - 1] = TONE3_A;
-                            num_tones_to_play--;
-                        }
-                        else {
-                            tone_state = TONE4_Elow;
-                            spi_write(0b01101011);
-                            // buzzer_on(3);
-                            c[sequence_length - 1] = TONE4_Elow;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        break;
-                    case TONE4_Elow:
-                        if (to_play == TONE1_Ehigh) {
-                            tone_state = TONE1_Ehigh;
-                            spi_write(0b10111110);
-                            // buzzer_on(0);
-                            c[sequence_length - 1] = TONE1_Ehigh;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        else if (to_play == TONE2_Csharp) {
-                            tone_state = TONE2_Csharp;
-                            spi_write(0b11101011);
-                            // buzzer_on(1);
-                            c[sequence_length - 1] = TONE2_Csharp;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        else if (to_play == TONE3_A) {
-                            tone_state = TONE3_A;
-                            spi_write(0b00111110);
-                            // buzzer_on(2);
-                            c[sequence_length - 1] = TONE3_A;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        else {
-                            tone_state = TONE4_Elow;
-                            spi_write(0b01101011);
-                            // buzzer_on(3);
-                            c[sequence_length - 1] = TONE4_Elow;
-                            next();
-                            tone_sequence(&STEP);
-                            num_tones_to_play--;
-                        }
-                        break;
-                    default:
-                        tone_state = WAIT;
-                        spi_write(0xFF);
-                        buzzer_off(); 
-                }
-            }
-            user_playing = 1;
-        }
-
-        if (user_playing == 1) {
-            uint16_t num_tones_to_play = sequence_length;
-            next();
-            tone_sequence(&STEP);
-            while (num_tones_to_play != 0) {
-                switch(tone_state) {
-                    case WAIT:
-                        if (pb_falling_edge & PIN4_bm) {
-                            tone_state = TONE1_Ehigh;
-                            // buzzer_on(0);
-                            spi_write(0b10111110);
-                            // u[sequence_length - 1] = TONE1_Ehigh;
-                            if (c[sequence_length - 1] == TONE1_Ehigh) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else if (pb_falling_edge & PIN5_bm) {
-                            tone_state = TONE2_Csharp;
-                            // buzzer_on(1);
-                            spi_write(0b11101011);
-                            if (c[sequence_length - 1] == TONE2_Csharp) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else if (pb_falling_edge & PIN6_bm) {
-                            tone_state = TONE3_A;
-                            // buzzer_on(2);
-                            spi_write(0b00111110);
-                            if (c[sequence_length - 1] == TONE3_A) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else {
-                            tone_state = TONE4_Elow;
-                            // buzzer_on(3);
-                            spi_write(0b01101011);
-                            if (c[sequence_length - 1] == TONE4_Elow) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        break;
-                    case TONE1_Ehigh:
-                        if (pb_falling_edge & PIN4_bm) {
-                            tone_state = TONE1_Ehigh;
-                            // buzzer_on(0);
-                            spi_write(0b10111110);
-                            // u[sequence_length - 1] = TONE1_Ehigh;
-                            if (c[sequence_length - 1] == TONE1_Ehigh) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else if (pb_falling_edge & PIN5_bm) {
-                            tone_state = TONE2_Csharp;
-                            // buzzer_on(1);
-                            spi_write(0b11101011);
-                            if (c[sequence_length - 1] == TONE2_Csharp) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else if (pb_falling_edge & PIN6_bm) {
-                            tone_state = TONE3_A;
-                            // buzzer_on(2);
-                            spi_write(0b00111110);
-                            if (c[sequence_length - 1] == TONE3_A) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else {
-                            tone_state = TONE4_Elow;
-                            // buzzer_on(3);
-                            spi_write(0b01101011);
-                            if (c[sequence_length - 1] == TONE4_Elow) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        break;
-                    case TONE2_Csharp:
-                        if (pb_falling_edge & PIN4_bm) {
-                            tone_state = TONE1_Ehigh;
-                            // buzzer_on(0);
-                            spi_write(0b10111110);
-                            // u[sequence_length - 1] = TONE1_Ehigh;
-                            if (c[sequence_length - 1] == TONE1_Ehigh) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else if (pb_falling_edge & PIN5_bm) {
-                            tone_state = TONE2_Csharp;
-                            // buzzer_on(1);
-                            spi_write(0b11101011);
-                            if (c[sequence_length - 1] == TONE2_Csharp) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else if (pb_falling_edge & PIN6_bm) {
-                            tone_state = TONE3_A;
-                            // buzzer_on(2);
-                            spi_write(0b00111110);
-                            if (c[sequence_length - 1] == TONE3_A) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else {
-                            tone_state = TONE4_Elow;
-                            // buzzer_on(3);
-                            spi_write(0b01101011);
-                            if (c[sequence_length - 1] == TONE4_Elow) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        break;
-                    case TONE3_A:
-                        if (pb_falling_edge & PIN4_bm) {
-                            tone_state = TONE1_Ehigh;
-                            // buzzer_on(0);
-                            spi_write(0b10111110);
-                            // u[sequence_length - 1] = TONE1_Ehigh;
-                            if (c[sequence_length - 1] == TONE1_Ehigh) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else if (pb_falling_edge & PIN5_bm) {
-                            tone_state = TONE2_Csharp;
-                            // buzzer_on(1);
-                            spi_write(0b11101011);
-                            if (c[sequence_length - 1] == TONE2_Csharp) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else if (pb_falling_edge & PIN6_bm) {
-                            tone_state = TONE3_A;
-                            // buzzer_on(2);
-                            spi_write(0b00111110);
-                            if (c[sequence_length - 1] == TONE3_A) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else {
-                            tone_state = TONE4_Elow;
-                            // buzzer_on(3);
-                            spi_write(0b01101011);
-                            if (c[sequence_length - 1] == TONE4_Elow) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        break;
-                    case TONE4_Elow:
-                        if (pb_falling_edge & PIN4_bm) {
-                            tone_state = TONE1_Ehigh;
-                            // buzzer_on(0);
-                            spi_write(0b10111110);
-                            // u[sequence_length - 1] = TONE1_Ehigh;
-                            if (c[sequence_length - 1] == TONE1_Ehigh) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else if (pb_falling_edge & PIN5_bm) {
-                            tone_state = TONE2_Csharp;
-                            // buzzer_on(1);
-                            spi_write(0b11101011);
-                            if (c[sequence_length - 1] == TONE2_Csharp) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else if (pb_falling_edge & PIN6_bm) {
-                            tone_state = TONE3_A;
-                            // buzzer_on(2);
-                            spi_write(0b00111110);
-                            if (c[sequence_length - 1] == TONE3_A) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        else {
-                            tone_state = TONE4_Elow;
-                            // buzzer_on(3);
-                            spi_write(0b01101011);
-                            if (c[sequence_length - 1] == TONE4_Elow) {
-                                user_success = 1;
-                                next();
-                                tone_sequence(&STEP);
-                                num_tones_to_play--;
-                            }
-                            else {
-                                user_success = 0;
-                                num_tones_to_play = 0;
-                            }
-                        }
-                        break;
-                    default:
-                        tone_state = WAIT;
-                        spi_write(0xFF);
-                        buzzer_off();
-                }
-            }
-            if (user_success == 1) {
-                char *success_string = "SUCCESS\n";
-                uart_puts(success_string);
-                user_playing = 0;
-            }
-        }
+        timer_init();
     }
 }
 
+ISR(TCB0_INT_vect) { // EXT5 (?)
+    static uint16_t count = 0;
+
+    static int user_playing = 0;
+    static int user_success = 0;
+
+    // printf("%d\n", (playback_delay >> 1));
+    // printf("%d\n", to_play);
+
+    if (to_play == 1) {
+        buzzer_on(0);
+        // spi_write(0b10111110);
+        if (count != (playback_delay >> 1)) {
+            count++;
+        }
+        else {
+            next();
+            tone_sequence(&STEP);
+            count = 0;
+        }
+    }
+    else if (to_play == 2) {
+        buzzer_on(1);
+        // spi_write(0b11101011);
+        if (count != (playback_delay >> 1)) {
+            count++;
+        }
+        else {
+            next();
+            tone_sequence(&STEP);
+            count = 0;
+        }
+    }
+    else if (to_play == 3) {
+        buzzer_on(2);
+        // spi_write(0b00111110);
+        if (count != (playback_delay >> 1)) {
+            count++;
+        }
+        else {
+            next();
+            tone_sequence(&STEP);
+            count = 0;
+        }
+    }
+    else if (to_play == 4) {
+        buzzer_on(3);
+        // spi_write(0b01101011);
+        if (count != (playback_delay >> 1)) {
+            count++;
+        }
+        else {
+            next();
+            tone_sequence(&STEP);
+            count = 0;
+        }
+    }
+
+    TCB0.INTFLAGS = TCB_CAPT_bm;        // Acknowledge interrupt
+}
