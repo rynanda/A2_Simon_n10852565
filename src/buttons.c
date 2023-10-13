@@ -13,14 +13,14 @@ void buttons_init(void) {
 
     // Configure timer for PB sampling
     cli();
-    TCB0.CTRLB = TCB_CNTMODE_INT_gc; // Configure TCB0 in periodic interrupt mode
-    TCB0.CCMP = 16667;               // Set interval for 5ms (16667 clocks @ 3.3 MHz)
-    TCB0.INTCTRL = TCB_CAPT_bm;      // CAPT interrupt enable
-    TCB0.CTRLA = TCB_ENABLE_bm;      // Enable
+    // TCB0.CTRLB = TCB_CNTMODE_INT_gc; // Configure TCB0 in periodic interrupt mode
+    TCB1.CCMP = 16667;               // Set interval for 5ms (16667 clocks @ 3.3 MHz)
+    TCB1.INTCTRL = TCB_CAPT_bm;      // CAPT interrupt enable
+    TCB1.CTRLA = TCB_ENABLE_bm;      // Enable
     sei();
 }
 
-ISR(TCB0_INT_vect) {
+ISR(TCB1_INT_vect) {
     static uint8_t count0 = 0;
     static uint8_t count1 = 0;
 
@@ -35,5 +35,5 @@ ISR(TCB0_INT_vect) {
     // Update pb_debounced_state if PB high for three samples
     pb_debounced_state ^= (count1 & count0); // | (pb_changed & pb_debounced_state); -> immediately on falling edge
 
-    TCB0.INTFLAGS = TCB_CAPT_bm;    // Acknowledge interrupt
+    TCB1.INTFLAGS = TCB_CAPT_bm;    // Acknowledge interrupt
 }
