@@ -10,14 +10,14 @@ void buttons_init(void) {
     PORTA.PIN5CTRL = PORT_PULLUPEN_bm;
     PORTA.PIN6CTRL = PORT_PULLUPEN_bm;
     PORTA.PIN7CTRL = PORT_PULLUPEN_bm;
+}
 
+void buttons_timer(void) {
     // Configure timer for PB sampling
-    cli();
-    // TCB0.CTRLB = TCB_CNTMODE_INT_gc; // Configure TCB0 in periodic interrupt mode
+    TCB1.CTRLB = TCB_CNTMODE_INT_gc; // Configure TCB0 in periodic interrupt mode
     TCB1.CCMP = 16667;               // Set interval for 5ms (16667 clocks @ 3.3 MHz)
     TCB1.INTCTRL = TCB_CAPT_bm;      // CAPT interrupt enable
     TCB1.CTRLA = TCB_ENABLE_bm;      // Enable
-    sei();
 }
 
 ISR(TCB1_INT_vect) {

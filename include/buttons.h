@@ -5,3 +5,4 @@
 extern volatile uint8_t pb_debounced_state;
 
 void buttons_init(void);
+void buttons_timer(void);
