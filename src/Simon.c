@@ -14,7 +14,7 @@
 // #include "initialisation.h"
 
 // Initialise global variables
-uint32_t STATE_LSFR = 0x12345678;           // Pseudo-random sequence seeded by student #
+uint32_t STATE_LSFR = 0x10852565;           // Pseudo-random sequence seeded by student #
 uint32_t STEP;
 uint8_t to_play;
 uint8_t result;
@@ -210,7 +210,7 @@ int main(void) {
                                 playing_state = PLAYING;
                                 tone_state = WAIT;
                                 played = 0;
-                                STATE_LSFR = 0x12345678;
+                                STATE_LSFR = 0x10852565;
                                 buzzer_off();
                             }
                         }
@@ -227,7 +227,7 @@ int main(void) {
                                 playing_state = PLAYING;
                                 tone_state = WAIT;
                                 played = 0;
-                                STATE_LSFR = 0x12345678;
+                                STATE_LSFR = 0x10852565;
                                 buzzer_off();
                             }
                         }
@@ -244,7 +244,7 @@ int main(void) {
                                 playing_state = PLAYING;
                                 tone_state = WAIT;
                                 played = 0;
-                                STATE_LSFR = 0x12345678;
+                                STATE_LSFR = 0x10852565;
                                 buzzer_off();
                             }
                         }
@@ -261,7 +261,7 @@ int main(void) {
                                 playing_state = PLAYING;
                                 tone_state = WAIT;
                                 played = 0;
-                                STATE_LSFR = 0x12345678;
+                                STATE_LSFR = 0x10852565;
                                 buzzer_off();
                             }
                         }
@@ -272,14 +272,14 @@ int main(void) {
                 }
                 break;
             case PLAYING:
-                STATE_LSFR = 0x12345678;
+                STATE_LSFR = 0x10852565;
                 for (int i = 0; i < sequence_length; i++) {
                     next();
                     tone_sequence(&STEP);
                     c[i] = to_play;
                     // printf("%d, ", c[i]);
                 }
-                STATE_LSFR = 0x12345678;
+                STATE_LSFR = 0x10852565;
                 next();
                 tone_sequence(&STEP);
                 count = 0;
@@ -433,7 +433,7 @@ int main(void) {
                 break;
             case FAIL:
                 buzzer_off();
-                STATE_LSFR = 0x12345678;
+                STATE_LSFR = 0x10852565;
                 if ((count >= (playback_delay >> 1))) {
                     printf("FAIL");
                     playing_state = NOT_PLAYING;
