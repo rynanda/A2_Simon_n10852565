@@ -14,11 +14,10 @@
 // #include "initialisation.h"
 
 // Initialise global variables
-uint32_t STATE_LSFR = 0x10852565;           // Pseudo-random sequence seeded by student #
+uint32_t STATE_LSFR = 0x12345678;           // Pseudo-random sequence seeded by student #
 uint32_t STEP;
 uint8_t to_play;
 uint8_t result;
-uint16_t sequence_length = 1;               // Same as user_score
 // uint16_t user_score = sequence_length;
 uint8_t correct_tones[256];
 uint8_t user_tones[256];
@@ -36,6 +35,15 @@ typedef enum { // Tutorial 10, Tutorial 12
 } TONE_STATES;
 
 TONE_STATES tone_state = WAIT;
+
+typedef enum {
+    NOT_PLAYING,
+    PLAYING,
+    SUCCESS,
+    FAIL
+} PLAYING_STATES;
+
+PLAYING_STATES playing_state = NOT_PLAYING;
 
 // Generate next sequence (tutorial 6)
 void next(void) {
@@ -59,10 +67,6 @@ void tone_sequence(uint32_t *number) {
     } else if ((lsb == 1) && (lsb2 == 2)) {
         to_play = 4;    // E(low)
     }
-
-    /*
-        Possibly if (*number == 0/1/2/3) {} ?
-    */
 }
 
 /*
@@ -126,17 +130,21 @@ int main(void) {
     // timer_init();
     serial_init();
     sei();
-    
+
+    static uint16_t played = 0;
+    static uint16_t sequence_length = 10;                    // Same as user_score
+
     next();
     tone_sequence(&STEP);
 
-    while(1) {
-        // static uint32_t playback_delay;                      // In milliseconds(ms)
-        // result = ADC0.RESULT;                                   // Get potentiometer reading (w/o reversing direction like TUT8)
-        // playback_delay = ((uint32_t)1750 * (uint32_t)result); 
-        // playback_delay = (playback_delay >> (uint32_t)8);       // Scale to between 0-1750 ms (with the line above)
-        // playback_delay += 250;                                  // Scale to between 250-2000 ms
+    result = ADC0.RESULT;                                   // Get potentiometer reading (w/o reversing direction like TUT8)
+    playback_delay = ((uint32_t)1750 * (uint32_t)result); 
+    playback_delay = (playback_delay >> (uint32_t)8);       // Scale to between 0-1750 ms (with the line above)
+    playback_delay += 250;                                  // Scale to between 250-2000 ms
 
+    while(1) {
+        // printf("%d\n", tone_state);
+        timer_init();
         uint8_t pb_state_prev;
         static uint8_t pb_state;
         uint8_t pb_changed;
@@ -150,76 +158,119 @@ int main(void) {
         pb_falling_edge = pb_changed & ~pb_state;
         pb_rising_edge = pb_changed & pb_state;
 
-        timer_init();
-        switch (tone_state) {
-            case WAIT:
-                if (to_play == 1) {
-                    buzzer_on(0);
-                    if ((count >= (playback_delay >> 1))) {
-                        tone_state = TONE1_Ehigh;
+        switch(playing_state) {
+            case NOT_PLAYING:
+                switch (tone_state) {
+                    case WAIT:
+                        if (to_play == 1) {
+                            buzzer_on(0);
+                            spi_write(0b10111110);
+                            if ((count >= (playback_delay >> 1))) {
+                                tone_state = TONE1_Ehigh;
+                                count = 0;
+                            }
+                        }
+                        else if (to_play == 2) {
+                            buzzer_on(1);
+                            spi_write(0b11101011);
+                            if ((count >= (playback_delay >> 1))) {
+                                tone_state = TONE2_Csharp;
+                                count = 0;
+                            }
+                        }
+                        else if (to_play == 3) {
+                            buzzer_on(2);
+                            spi_write(0b00111110);
+                            if ((count >= (playback_delay >> 1))) {
+                                tone_state = TONE3_A;
+                                count = 0;
+                            }
+                        }
+                        else if (to_play == 4) {
+                            buzzer_on(3);
+                            spi_write(0b01101011);
+                            if ((count >= (playback_delay >> 1))) {
+                                tone_state = TONE4_Elow;
+                                count = 0;
+                            }
+                        }
+                        break;
+                    case TONE1_Ehigh:
+                        buzzer_off();
+                        if ((count >= (playback_delay >> 1))) {
+                            next();
+                            tone_sequence(&STEP);
+                            tone_state = WAIT;
+                            count = 0;
+                            played++;
+                            if (played == sequence_length) {
+                                playing_state = PLAYING;
+                                buzzer_off();
+                            }
+                        }
+                        break;
+                    case TONE2_Csharp:
+                        buzzer_off();
+                        if ((count >= (playback_delay >> 1))) {
+                            next();
+                            tone_sequence(&STEP);
+                            tone_state = WAIT;
+                            count = 0;
+                            played++;
+                            if (played == sequence_length) {
+                                playing_state = PLAYING;
+                                buzzer_off();
+                            }
+                        }
+                        break;
+                    case TONE3_A:
+                        buzzer_off();
+                        if ((count >= (playback_delay >> 1))) {
+                            next();
+                            tone_sequence(&STEP);
+                            tone_state = WAIT;
+                            count = 0;
+                            played++;
+                            if (played == sequence_length) {
+                                playing_state = PLAYING;
+                                buzzer_off();
+                            }
+                        }
+                        break;
+                    case TONE4_Elow:
+                        buzzer_off();
+                        if ((count >= (playback_delay >> 1))) {
+                            next();
+                            tone_sequence(&STEP);
+                            tone_state = WAIT;
+                            count = 0;
+                            played++;
+                            if (played == sequence_length) {
+                                playing_state = PLAYING;
+                                buzzer_off();
+                            }
+                        }
+                        break;
+                    default:
+                        buzzer_off();
                         count = 0;
-                    }
-                }
-                else if (to_play == 2) {
-                    buzzer_on(1);
-                    if ((count >= (playback_delay >> 1))) {
-                        tone_state = TONE2_Csharp;
-                        count = 0;
-                    }
-                }
-                else if (to_play == 3) {
-                    buzzer_on(2);
-                    if ((count >= (playback_delay >> 1))) {
-                        tone_state = TONE3_A;
-                        count = 0;
-                    }
-                }
-                else if (to_play == 4) {
-                    buzzer_on(3);
-                    if ((count >= (playback_delay >> 1))) {
-                        tone_state = TONE4_Elow;
-                        count = 0;
-                    }
                 }
                 break;
-            case TONE1_Ehigh:
-                buzzer_off();
-                if ((count >= (playback_delay >> 1))) {
+            case PLAYING:
+                played = 0;
+                STATE_LSFR = 0x12345678;
+                for (int i = 0; i < sequence_length; i++) {
                     next();
                     tone_sequence(&STEP);
-                    tone_state = WAIT;
-                    count = 0;
+                    c[i] = to_play;
+                    // printf("%d, ", c[i]);
                 }
-                break;
-            case TONE2_Csharp:
-                buzzer_off();
-                if ((count >= (playback_delay >> 1))) {
-                    next();
-                    tone_sequence(&STEP);
-                    tone_state = WAIT;
-                    count = 0;
-                }
-                break;
-            case TONE3_A:
-                buzzer_off();
-                if ((count >= (playback_delay >> 1))) {
-                    next();
-                    tone_sequence(&STEP);
-                    tone_state = WAIT;
-                    count = 0;
-                }
-                break;
-            case TONE4_Elow:
-                buzzer_off();
-                if ((count >= (playback_delay >> 1))) {
-                    next();
-                    tone_sequence(&STEP);
-                    tone_state = WAIT;
-                    count = 0;
-                }
-                break;
+                STATE_LSFR = 0x12345678;
+                next();
+                tone_sequence(&STEP);
+
+
         }
-        // timer_init();
     }
 }
 
@@ -233,6 +284,8 @@ ISR(TCB0_INT_vect) { // EXT5 (?)
     if (count < (playback_delay >> 1)) {
         count++;
     }
+
+    // printf("%d\n", count);
 
     TCB0.INTFLAGS = TCB_CAPT_bm;        // Acknowledge interrupt
 }
