@@ -25,6 +25,7 @@ uint8_t user_tones[256];
 uint8_t *c = correct_tones;
 uint8_t *u = user_tones;
 static uint32_t playback_delay;
+static uint16_t count = 0;
 
 typedef enum { // Tutorial 10, Tutorial 12
     WAIT = 0,
@@ -131,10 +132,10 @@ int main(void) {
 
     while(1) {
         // static uint32_t playback_delay;                      // In milliseconds(ms)
-        result = ADC0.RESULT;                                   // Get potentiometer reading (w/o reversing direction like TUT8)
-        playback_delay = ((uint32_t)1750 * (uint32_t)result); 
-        playback_delay = (playback_delay >> (uint32_t)8);       // Scale to between 0-1750 ms (with the line above)
-        playback_delay += 250;                                  // Scale to between 250-2000 ms
+        // result = ADC0.RESULT;                                   // Get potentiometer reading (w/o reversing direction like TUT8)
+        // playback_delay = ((uint32_t)1750 * (uint32_t)result); 
+        // playback_delay = (playback_delay >> (uint32_t)8);       // Scale to between 0-1750 ms (with the line above)
+        // playback_delay += 250;                                  // Scale to between 250-2000 ms
 
         uint8_t pb_state_prev;
         static uint8_t pb_state;
@@ -148,107 +149,89 @@ int main(void) {
         pb_changed = pb_state ^ pb_state_prev;
         pb_falling_edge = pb_changed & ~pb_state;
         pb_rising_edge = pb_changed & pb_state;
+
         timer_init();
+        switch (tone_state) {
+            case WAIT:
+                if (to_play == 1) {
+                    buzzer_on(0);
+                    if ((count >= (playback_delay >> 1))) {
+                        tone_state = TONE1_Ehigh;
+                        count = 0;
+                    }
+                }
+                else if (to_play == 2) {
+                    buzzer_on(1);
+                    if ((count >= (playback_delay >> 1))) {
+                        tone_state = TONE2_Csharp;
+                        count = 0;
+                    }
+                }
+                else if (to_play == 3) {
+                    buzzer_on(2);
+                    if ((count >= (playback_delay >> 1))) {
+                        tone_state = TONE3_A;
+                        count = 0;
+                    }
+                }
+                else if (to_play == 4) {
+                    buzzer_on(3);
+                    if ((count >= (playback_delay >> 1))) {
+                        tone_state = TONE4_Elow;
+                        count = 0;
+                    }
+                }
+                break;
+            case TONE1_Ehigh:
+                buzzer_off();
+                if ((count >= (playback_delay >> 1))) {
+                    next();
+                    tone_sequence(&STEP);
+                    tone_state = WAIT;
+                    count = 0;
+                }
+                break;
+            case TONE2_Csharp:
+                buzzer_off();
+                if ((count >= (playback_delay >> 1))) {
+                    next();
+                    tone_sequence(&STEP);
+                    tone_state = WAIT;
+                    count = 0;
+                }
+                break;
+            case TONE3_A:
+                buzzer_off();
+                if ((count >= (playback_delay >> 1))) {
+                    next();
+                    tone_sequence(&STEP);
+                    tone_state = WAIT;
+                    count = 0;
+                }
+                break;
+            case TONE4_Elow:
+                buzzer_off();
+                if ((count >= (playback_delay >> 1))) {
+                    next();
+                    tone_sequence(&STEP);
+                    tone_state = WAIT;
+                    count = 0;
+                }
+                break;
+        }
+        // timer_init();
     }
 }
 
 ISR(TCB0_INT_vect) { // EXT5 (?)
 
-    static uint16_t count = 0;
-    static int user_playing = 0;
-    static int user_success = 0;
+    result = ADC0.RESULT;                                   // Get potentiometer reading (w/o reversing direction like TUT8)
+    playback_delay = ((uint32_t)1750 * (uint32_t)result); 
+    playback_delay = (playback_delay >> (uint32_t)8);       // Scale to between 0-1750 ms (with the line above)
+    playback_delay += 250;                                  // Scale to between 250-2000 ms
 
-    switch (tone_state) {
-        case WAIT:
-            if (to_play == 1) {
-                buzzer_on(0);
-                if (count != (playback_delay >> 1)) {
-                    count++;
-                }
-                else {
-                    next();
-                    tone_sequence(&STEP);
-                    count = 0;
-                    tone_state = to_play;
-                }
-            }
-            else if (to_play == 2) {
-                buzzer_on(1);
-                if (count != (playback_delay >> 1)) {
-                    count++;
-                }
-                else {
-                    next();
-                    tone_sequence(&STEP);
-                    count = 0;
-                    tone_state = to_play;
-                }
-            }
-            else if (to_play == 3) {
-                buzzer_on(2);
-                if (count != (playback_delay >> 1)) {
-                    count++;
-                }
-                else {
-                    next();
-                    tone_sequence(&STEP);
-                    count = 0;
-                    tone_state = to_play;
-                }
-            }
-            else if (to_play == 4) {
-                buzzer_on(3);
-                if (count != (playback_delay >> 1)) {
-                    count++;
-                }
-                else {
-                    next();
-                    tone_sequence(&STEP);
-                    count = 0;
-                    tone_state = to_play;
-                }
-            }
-            break;
-        case TONE1_Ehigh:
-            buzzer_off();
-            if (count != (playback_delay >> 1)) {
-                count++;
-            }
-            else {
-                count = 0;
-                tone_state = WAIT;
-            }
-            break;
-        case TONE2_Csharp:
-            buzzer_off();
-            if (count != (playback_delay >> 1)) {
-                count++;
-            }
-            else {
-                count = 0;
-                tone_state = WAIT;
-            }
-            break;
-        case TONE3_A:
-            buzzer_off();
-            if (count != (playback_delay >> 1)) {
-                count++;
-            }
-            else {
-                count = 0;
-                tone_state = WAIT;
-            }
-            break;
-        case TONE4_Elow:
-            buzzer_off();
-            if (count != (playback_delay >> 1)) {
-                count++;
-            }
-            else {
-                count = 0;
-                tone_state = WAIT;
-            }
-            break;
+    if (count < (playback_delay >> 1)) {
+        count++;
     }
 
     TCB0.INTFLAGS = TCB_CAPT_bm;        // Acknowledge interrupt
