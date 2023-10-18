@@ -319,6 +319,9 @@ int main(void) {
                             }
                             else {
                                 user_success = 0;
+                                count = 0;
+                                buzzer_off();
+                                playing_state = FAIL;
                             }
                             played++;
                             if (played == sequence_length) {
@@ -347,6 +350,9 @@ int main(void) {
                             }
                             else {
                                 user_success = 0;
+                                count = 0;
+                                buzzer_off();
+                                playing_state = FAIL;
                             }
                             played++;
                             if (played == sequence_length) {
@@ -375,6 +381,9 @@ int main(void) {
                             }
                             else {
                                 user_success = 0;
+                                count = 0;
+                                buzzer_off();
+                                playing_state = FAIL;
                             }
                             played++;
                             if (played == sequence_length) {
@@ -403,6 +412,9 @@ int main(void) {
                             }
                             else {
                                 user_success = 0;
+                                count = 0;
+                                buzzer_off();
+                                playing_state = FAIL;
                             }
                             played++;
                             if (played == sequence_length) {
@@ -455,7 +467,6 @@ int main(void) {
                 }
                 break;
             case FAIL:
-                // buzzer_off();
                 STATE_LSFR = 0x10852565;
                 if ((count >= playback_delay)) {
                     playing_state = FAIL_DISP;
