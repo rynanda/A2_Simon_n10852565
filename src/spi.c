@@ -12,7 +12,7 @@ void spi_init(void) {
     SPI0.CTRLA |= SPI_ENABLE_bm;                // Enable
 
     PORTA.OUTCLR = PIN1_bm;                     // Set DISP LATCH low initially
-    PORTA.DIRSET = PIN1_bm;                     // Set DISP LATCH as output
+    PORTA.DIR |= PIN1_bm;                     // Set DISP LATCH as output
     SPI0.INTCTRL = SPI_IE_bm;                   // Enable SPI interrupt
     sei();
 }
