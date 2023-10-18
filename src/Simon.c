@@ -25,6 +25,7 @@ uint8_t *c = correct_tones;
 uint8_t *u = user_tones;
 static uint32_t playback_delay;
 static uint16_t count = 0;
+static int digit_disp = 0;
 
 typedef enum { // Tutorial 10, Tutorial 12
     WAIT = 0,
@@ -37,10 +38,14 @@ typedef enum { // Tutorial 10, Tutorial 12
 TONE_STATES tone_state = WAIT;
 
 typedef enum {
-    NOT_PLAYING = 0,
-    PLAYING = 1,
-    SUCCESS = 2,
-    FAIL = 3
+    NOT_PLAYING,
+    PLAYING,
+    SUCCESS,
+    SUCCESS_DISP,
+    FAIL,
+    FAIL_DISP,
+    USER_SCORE,
+    CHANGE
 } PLAYING_STATES;
 
 PLAYING_STATES playing_state = NOT_PLAYING;
@@ -128,6 +133,7 @@ int main(void) {
     adc_init();
     buttons_init();
     // timer_init();
+    buttons_timer();
     serial_init();
     sei();
 
@@ -145,7 +151,6 @@ int main(void) {
 
     while(1) {
         timer_init();
-        buttons_timer();
         uint8_t pb_state_prev;
         static uint8_t pb_state;
         uint8_t pb_changed;
@@ -277,7 +282,6 @@ int main(void) {
                     next();
                     tone_sequence(&STEP);
                     c[i] = to_play;
-                    // printf("%d, ", c[i]);
                 }
                 STATE_LSFR = 0x10852565;
                 next();
@@ -288,30 +292,28 @@ int main(void) {
                     case WAIT:
                         if (pb_falling_edge & PIN4_bm) {
                             tone_state = TONE1_Ehigh;
-                            buzzer_on(0);
                             spi_write(0b10111110);
+                            buzzer_on(0);
                         }
                         else if (pb_falling_edge & PIN5_bm) {
                             tone_state = TONE2_Csharp;
-                            buzzer_on(1);
                             spi_write(0b11101011);
+                            buzzer_on(1);
                         }
                         else if (pb_falling_edge & PIN6_bm) {
                             tone_state = TONE3_A;
-                            buzzer_on(2);
                             spi_write(0b00111110);
+                            buzzer_on(2);
                         }
                         else if (pb_falling_edge & PIN7_bm) {
                             tone_state = TONE4_Elow;
-                            buzzer_on(3);
                             spi_write(0b01101011);
+                            buzzer_on(3);
                         }
-                        
                         break;
                     case TONE1_Ehigh:
                         if (pb_rising_edge & PIN4_bm) {
                             u[played] = 1;
-                            printf("%d %d\n", u[played], c[played]);
                             if (u[played] == c[played]) {
                                 user_success = 1;
                             }
@@ -322,10 +324,12 @@ int main(void) {
                             if (played == sequence_length) {
                                 if(user_success == 1) {
                                     count = 0;
+                                    buzzer_off();
                                     playing_state = SUCCESS;
                                 }
                                 else {
                                     count = 0;
+                                    buzzer_off();
                                     playing_state = FAIL;
                                 }
                             }
@@ -338,7 +342,6 @@ int main(void) {
                     case TONE2_Csharp:
                         if (pb_rising_edge & PIN5_bm) {
                             u[played] = 2;
-                            printf("%d %d\n", u[played], c[played]);
                             if (u[played] == c[played]) {
                                 user_success = 1;
                             }
@@ -349,10 +352,12 @@ int main(void) {
                             if (played == sequence_length) {
                                 if(user_success == 1) {
                                     count = 0;
+                                    buzzer_off();
                                     playing_state = SUCCESS;
                                 }
                                 else {
                                     count = 0;
+                                    buzzer_off();
                                     playing_state = FAIL;
                                 }
                             }
@@ -365,7 +370,6 @@ int main(void) {
                     case TONE3_A:
                         if (pb_rising_edge & PIN6_bm) {
                             u[played] = 3;
-                            printf("%d %d\n", u[played], c[played]);
                             if (u[played] == c[played]) {
                                 user_success = 1;
                             }
@@ -376,10 +380,12 @@ int main(void) {
                             if (played == sequence_length) {
                                 if(user_success == 1) {
                                     count = 0;
+                                    buzzer_off();
                                     playing_state = SUCCESS;
                                 }
                                 else {
                                     count = 0;
+                                    buzzer_off();
                                     playing_state = FAIL;
                                 }
                             }
@@ -392,7 +398,6 @@ int main(void) {
                     case TONE4_Elow:
                         if (pb_rising_edge & PIN7_bm) {
                             u[played] = 4;
-                            printf("%d %d\n", u[played], c[played]);
                             if (u[played] == c[played]) {
                                 user_success = 1;
                             }
@@ -403,10 +408,12 @@ int main(void) {
                             if (played == sequence_length) {
                                 if(user_success == 1) {
                                     count = 0;
+                                    buzzer_off();
                                     playing_state = SUCCESS;
                                 }
                                 else {
                                     count = 0;
+                                    buzzer_off();
                                     playing_state = FAIL;
                                 }
                             }
@@ -421,25 +428,67 @@ int main(void) {
 
                 break;
             case SUCCESS:
-                buzzer_off();
-                if ((count >= (playback_delay >> 1))) {
-                    printf("SUCCESS");
-                    playing_state = NOT_PLAYING;
+                if ((count >= playback_delay)) {
+                    playing_state = SUCCESS_DISP;
                     tone_state = WAIT;
                     played = 0;
                     sequence_length++;
                     count = 0;
                 }
                 break;
+            case SUCCESS_DISP:
+                buzzer_success_fail();
+                if (digit_disp == 0) {
+                    spi_write(0b00000000);
+                    digit_disp = 1;
+                }
+                else if (digit_disp == 1) {
+                    spi_write(0b10000000);
+                    digit_disp = 0;
+                }
+                if ((count >= playback_delay)) {
+                    playing_state = CHANGE;
+                    buzzer_off();
+                    tone_state = WAIT;
+                    played = 0;
+                    count = 0;
+                }
+                break;
             case FAIL:
-                buzzer_off();
+                // buzzer_off();
                 STATE_LSFR = 0x10852565;
-                if ((count >= (playback_delay >> 1))) {
-                    printf("FAIL");
-                    playing_state = NOT_PLAYING;
+                if ((count >= playback_delay)) {
+                    playing_state = FAIL_DISP;
                     tone_state = WAIT;
                     played = 0;
                     sequence_length = 1;
+                    count = 0;
+                }
+                break;
+            case FAIL_DISP:
+                buzzer_success_fail();
+                if (digit_disp == 0) {
+                    spi_write(0b01110111);
+                    digit_disp = 1;
+                }
+                else if (digit_disp == 1) {
+                    spi_write(0b11110111);
+                    digit_disp = 0;
+                }
+                if ((count >= playback_delay)) {
+                    playing_state = CHANGE;
+                    buzzer_off();
+                    tone_state = WAIT;
+                    played = 0;
+                    count = 0;
+                }
+                break;
+            case CHANGE:
+                buzzer_off();
+                if ((count >= playback_delay)) {
+                    playing_state = NOT_PLAYING;
+                    tone_state = WAIT;
+                    played = 0;
                     count = 0;
                 }
                 break;
@@ -456,11 +505,9 @@ ISR(TCB0_INT_vect) { // EXT5 (?)
     playback_delay = (playback_delay >> (uint32_t)8);       // Scale to between 0-1750 ms (with the line above)
     playback_delay += 250;                                  // Scale to between 250-2000 ms
 
-    if (count < (playback_delay >> 1)) {
+    if (count < playback_delay) {
         count++;
     }
-
-    // printf("%d\n", count);
 
     TCB0.INTFLAGS = TCB_CAPT_bm;        // Acknowledge interrupt
 }
