@@ -18,28 +18,40 @@ void buzzer_on(const uint8_t tone) { // Tutorial 12
         TCA0.SINGLE.PERBUF = periods[0];
         TCA0.SINGLE.CMP1BUF = periods[0];
         TCA0.SINGLE.CMP0BUF = (TCA0.SINGLE.PERBUF >> 1);
+        // TCA0.SINGLE.CMP0BUF = 0;
     }
     else if (tone == 1) {
         // spi_write(0b11101011);
         TCA0.SINGLE.PERBUF = periods[1];
         TCA0.SINGLE.CMP1BUF = periods[1];
         TCA0.SINGLE.CMP0BUF = (TCA0.SINGLE.PERBUF >> 1);
+        // TCA0.SINGLE.CMP0BUF = 0;
     }
     else if (tone == 2) {
         // spi_write(0b00111110);
         TCA0.SINGLE.PERBUF = periods[2];
         TCA0.SINGLE.CMP1BUF = periods[2];
         TCA0.SINGLE.CMP0BUF = (TCA0.SINGLE.PERBUF >> 1);
+        // TCA0.SINGLE.CMP0BUF = 0;
     }
     else if (tone == 3) {
         // spi_write(0b01101011);
         TCA0.SINGLE.PERBUF = periods[3];
         TCA0.SINGLE.CMP1BUF = periods[3];
         TCA0.SINGLE.CMP0BUF = (TCA0.SINGLE.PERBUF >> 1);
+        // TCA0.SINGLE.CMP0BUF = 0;
     }
 }
 
 void buzzer_off(void) {
-    TCA0_SINGLE_CMP1BUF = 0;
+    spi_init();
+    TCA0.SINGLE.CMP1BUF = 0;
+    TCA0.SINGLE.CMP0BUF = 0;
+}
+
+void buzzer_success_fail(void) {
+    spi_init();
+    TCA0.SINGLE.PERBUF = 7161;
+    TCA0.SINGLE.CMP1BUF = 7161;
     TCA0.SINGLE.CMP0BUF = 0;
 }
