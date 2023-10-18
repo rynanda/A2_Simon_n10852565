@@ -40,12 +40,9 @@ TONE_STATES tone_state = WAIT;
 typedef enum {
     NOT_PLAYING,
     PLAYING,
-    SUCCESS,
     SUCCESS_DISP,
-    FAIL,
     FAIL_DISP,
-    USER_SCORE,
-    CHANGE
+    USER_SCORE
 } PLAYING_STATES;
 
 PLAYING_STATES playing_state = NOT_PLAYING;
@@ -321,19 +318,19 @@ int main(void) {
                                 user_success = 0;
                                 count = 0;
                                 buzzer_off();
-                                playing_state = FAIL;
+                                playing_state = FAIL_DISP;
                             }
                             played++;
                             if (played == sequence_length) {
                                 if(user_success == 1) {
                                     count = 0;
                                     buzzer_off();
-                                    playing_state = SUCCESS;
+                                    playing_state = SUCCESS_DISP;
                                 }
                                 else {
                                     count = 0;
                                     buzzer_off();
-                                    playing_state = FAIL;
+                                    playing_state = FAIL_DISP;
                                 }
                             }
                             else {
@@ -352,19 +349,19 @@ int main(void) {
                                 user_success = 0;
                                 count = 0;
                                 buzzer_off();
-                                playing_state = FAIL;
+                                playing_state = FAIL_DISP;
                             }
                             played++;
                             if (played == sequence_length) {
                                 if(user_success == 1) {
                                     count = 0;
                                     buzzer_off();
-                                    playing_state = SUCCESS;
+                                    playing_state = SUCCESS_DISP;
                                 }
                                 else {
                                     count = 0;
                                     buzzer_off();
-                                    playing_state = FAIL;
+                                    playing_state = FAIL_DISP;
                                 }
                             }
                             else {
@@ -383,19 +380,19 @@ int main(void) {
                                 user_success = 0;
                                 count = 0;
                                 buzzer_off();
-                                playing_state = FAIL;
+                                playing_state = FAIL_DISP;
                             }
                             played++;
                             if (played == sequence_length) {
                                 if(user_success == 1) {
                                     count = 0;
                                     buzzer_off();
-                                    playing_state = SUCCESS;
+                                    playing_state = SUCCESS_DISP;
                                 }
                                 else {
                                     count = 0;
                                     buzzer_off();
-                                    playing_state = FAIL;
+                                    playing_state = FAIL_DISP;
                                 }
                             }
                             else {
@@ -414,19 +411,19 @@ int main(void) {
                                 user_success = 0;
                                 count = 0;
                                 buzzer_off();
-                                playing_state = FAIL;
+                                playing_state = FAIL_DISP;
                             }
                             played++;
                             if (played == sequence_length) {
                                 if(user_success == 1) {
                                     count = 0;
                                     buzzer_off();
-                                    playing_state = SUCCESS;
+                                    playing_state = SUCCESS_DISP;
                                 }
                                 else {
                                     count = 0;
                                     buzzer_off();
-                                    playing_state = FAIL;
+                                    playing_state = FAIL_DISP;
                                 }
                             }
                             else {
@@ -439,15 +436,6 @@ int main(void) {
                     }
 
                 break;
-            case SUCCESS:
-                if ((count >= playback_delay)) {
-                    playing_state = SUCCESS_DISP;
-                    tone_state = WAIT;
-                    played = 0;
-                    sequence_length++;
-                    count = 0;
-                }
-                break;
             case SUCCESS_DISP:
                 buzzer_success_fail();
                 if (digit_disp == 0) {
@@ -459,20 +447,11 @@ int main(void) {
                     digit_disp = 0;
                 }
                 if ((count >= playback_delay)) {
-                    playing_state = CHANGE;
+                    playing_state = NOT_PLAYING;
                     buzzer_off();
                     tone_state = WAIT;
+                    sequence_length++;
                     played = 0;
-                    count = 0;
-                }
-                break;
-            case FAIL:
-                STATE_LSFR = 0x10852565;
-                if ((count >= playback_delay)) {
-                    playing_state = FAIL_DISP;
-                    tone_state = WAIT;
-                    played = 0;
-                    sequence_length = 1;
                     count = 0;
                 }
                 break;
@@ -487,24 +466,15 @@ int main(void) {
                     digit_disp = 0;
                 }
                 if ((count >= playback_delay)) {
-                    playing_state = CHANGE;
+                    playing_state = NOT_PLAYING;
+                    STATE_LSFR = 0x10852565;
                     buzzer_off();
                     tone_state = WAIT;
+                    sequence_length = 1;
                     played = 0;
                     count = 0;
                 }
                 break;
-            case CHANGE:
-                buzzer_off();
-                if ((count >= playback_delay)) {
-                    playing_state = NOT_PLAYING;
-                    tone_state = WAIT;
-                    played = 0;
-                    count = 0;
-                }
-                break;
-                
-
         }
     }
 }
@@ -516,9 +486,10 @@ ISR(TCB0_INT_vect) { // EXT5 (?)
     playback_delay = (playback_delay >> (uint32_t)8);       // Scale to between 0-1750 ms (with the line above)
     playback_delay += 250;                                  // Scale to between 250-2000 ms
 
-    if (count < playback_delay) {
-        count++;
-    }
+    // if (count < playback_delay) {
+    //     count++;
+    // }
+    count++;
 
     TCB0.INTFLAGS = TCB_CAPT_bm;        // Acknowledge interrupt
 }
