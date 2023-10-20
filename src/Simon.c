@@ -10,7 +10,7 @@
 // #include "timer.h"
 #include "buttons.h"
 #include "buzzer.h"
-#include "qutyserial.h"
+// #include "qutyserial.h"
 // #include "initialisation.h"
 
 // Initialise global variables
@@ -113,12 +113,12 @@ void adc_init(void) { // Tutorial 8 // For playback delay -> scaling to between 
 }
 
 void timer_init(void) { //  Tutorial 9
-    cli();
+    // cli();
     TCB0.CTRLB = TCB_CNTMODE_INT_gc;
     TCB0.CCMP = 3333;                   // Set interval for 1ms (3333 clocks @ 3.3 MHz)
     TCB0.INTCTRL = TCB_CAPT_bm;         // CAPT interrupt enable
     TCB0.CTRLA = TCB_ENABLE_bm;         // Enable
-    sei();
+    // sei();
 }
 
 int main(void) {
@@ -129,9 +129,9 @@ int main(void) {
     pwm_init();
     adc_init();
     buttons_init();
-    // timer_init();
+    timer_init();
     buttons_timer();
-    serial_init();
+    // serial_init();
     sei();
 
     static uint16_t played = 0;
@@ -141,13 +141,11 @@ int main(void) {
     next();
     tone_sequence(&STEP);
 
-    result = ADC0.RESULT;                                   // Get potentiometer reading (w/o reversing direction like TUT8)
-    playback_delay = ((uint32_t)1750 * (uint32_t)result); 
-    playback_delay = (playback_delay >> (uint32_t)8);       // Scale to between 0-1750 ms (with the line above)
-    playback_delay += 250;                                  // Scale to between 250-2000 ms
-
     while(1) {
-        timer_init();
+        result = ADC0.RESULT;                                   // Get potentiometer reading (w/o reversing direction like TUT8)
+        playback_delay = ((uint32_t)1750 * (uint32_t)result); 
+        playback_delay = (playback_delay >> (uint32_t)8);       // Scale to between 0-1750 ms (with the line above)
+        playback_delay += 250;                                  // Scale to between 250-2000 ms
         uint8_t pb_state_prev;
         static uint8_t pb_state;
         uint8_t pb_changed;
@@ -155,8 +153,8 @@ int main(void) {
         uint8_t pb_rising_edge;
 
         pb_state_prev = pb_state;
-        // pb_state = pb_debounced_state;
-        pb_state = PORTA.IN;
+        pb_state = pb_debounced_state;
+        // pb_state = PORTA.IN;
 
         pb_changed = pb_state ^ pb_state_prev;
 
@@ -289,23 +287,23 @@ int main(void) {
                     case WAIT:
                         if (pb_falling_edge & PIN4_bm) {
                             tone_state = TONE1_Ehigh;
-                            spi_write(0b10111110);
                             buzzer_on(0);
+                            spi_write(0b10111110);
                         }
                         else if (pb_falling_edge & PIN5_bm) {
                             tone_state = TONE2_Csharp;
-                            spi_write(0b11101011);
                             buzzer_on(1);
+                            spi_write(0b11101011);
                         }
                         else if (pb_falling_edge & PIN6_bm) {
                             tone_state = TONE3_A;
-                            spi_write(0b00111110);
                             buzzer_on(2);
+                            spi_write(0b00111110);
                         }
                         else if (pb_falling_edge & PIN7_bm) {
                             tone_state = TONE4_Elow;
-                            spi_write(0b01101011);
                             buzzer_on(3);
+                            spi_write(0b01101011);
                         }
                         break;
                     case TONE1_Ehigh:
@@ -480,15 +478,7 @@ int main(void) {
 }
 
 ISR(TCB0_INT_vect) { // EXT5 (?)
-
-    result = ADC0.RESULT;                                   // Get potentiometer reading (w/o reversing direction like TUT8)
-    playback_delay = ((uint32_t)1750 * (uint32_t)result); 
-    playback_delay = (playback_delay >> (uint32_t)8);       // Scale to between 0-1750 ms (with the line above)
-    playback_delay += 250;                                  // Scale to between 250-2000 ms
-
-    // if (count < playback_delay) {
-    //     count++;
-    // }
+    
     count++;
 
     TCB0.INTFLAGS = TCB_CAPT_bm;        // Acknowledge interrupt
