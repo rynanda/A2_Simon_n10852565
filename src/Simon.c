@@ -26,6 +26,7 @@ uint8_t *u = user_tones;
 static uint32_t playback_delay;
 static uint16_t count = 0;
 static int digit_disp = 0;
+static char rx;
 
 typedef enum { // Tutorial 10, Tutorial 12
     WAIT = 0,
@@ -46,6 +47,16 @@ typedef enum {
 } PLAYING_STATES;
 
 PLAYING_STATES playing_state = NOT_PLAYING;
+
+typedef enum {
+    AWAIT_SYM = '\n',
+    S1_SYM = 'q',
+    S2_SYM = 'w',
+    S3_SYM = 'e',
+    S4_SYM = 'r'
+} SYM_STATES;
+
+SYM_STATES sym_state = AWAIT_SYM;
 
 // Generate next sequence (tutorial 6)
 void next(void) {
@@ -70,14 +81,6 @@ void tone_sequence(uint32_t *number) {
         to_play = 4;    // E(low)
     }
 }
-
-/*
-    A STEP value of 00 means that the tone E(high) will be played, 
-    and the user must press pushbutton S1 to reproduce that step, 
-    a STEP value of 01 means C♯ is played, and so forth.
-
-    Call tone_sequence with -> tone_sequence(&STEP);
-*/
 
 void pwm_init(void) { // Tutorial 8
     PORTB_DIRSET = PIN1_bm | PIN0_bm;                   // Enable PB1 (DISP EN) and PB0 (BUZZER) as outputs
@@ -113,12 +116,10 @@ void adc_init(void) { // Tutorial 8 // For playback delay -> scaling to between 
 }
 
 void timer_init(void) { //  Tutorial 9
-    // cli();
     TCB0.CTRLB = TCB_CNTMODE_INT_gc;
     TCB0.CCMP = 3333;                   // Set interval for 1ms (3333 clocks @ 3.3 MHz)
     TCB0.INTCTRL = TCB_CAPT_bm;         // CAPT interrupt enable
     TCB0.CTRLA = TCB_ENABLE_bm;         // Enable
-    // sei();
 }
 
 int main(void) {
@@ -131,7 +132,6 @@ int main(void) {
     buttons_init();
     timer_init();
     buttons_timer();
-    // serial_init();
     sei();
 
     static uint16_t played = 0;
@@ -152,9 +152,10 @@ int main(void) {
         uint8_t pb_falling_edge;
         uint8_t pb_rising_edge;
 
+        // uart_putc((u[played] + '0'));
+
         pb_state_prev = pb_state;
         pb_state = pb_debounced_state;
-        // pb_state = PORTA.IN;
 
         pb_changed = pb_state ^ pb_state_prev;
 
@@ -307,7 +308,8 @@ int main(void) {
                         }
                         break;
                     case TONE1_Ehigh:
-                        if (pb_rising_edge & PIN4_bm) {
+                        if ((pb_rising_edge & PIN4_bm) || (sym_state == S1_SYM)) {
+                            sym_state = AWAIT_SYM;
                             u[played] = 1;
                             if (u[played] == c[played]) {
                                 user_success = 1;
@@ -338,7 +340,8 @@ int main(void) {
                         }
                         break;
                     case TONE2_Csharp:
-                        if (pb_rising_edge & PIN5_bm) {
+                        if ((pb_rising_edge & PIN5_bm) || (sym_state == S2_SYM)) {
+                            sym_state = AWAIT_SYM;
                             u[played] = 2;
                             if (u[played] == c[played]) {
                                 user_success = 1;
@@ -369,7 +372,8 @@ int main(void) {
                         }
                         break;
                     case TONE3_A:
-                        if (pb_rising_edge & PIN6_bm) {
+                        if ((pb_rising_edge & PIN6_bm) || (sym_state == S3_SYM)) {
+                            sym_state = AWAIT_SYM;
                             u[played] = 3;
                             if (u[played] == c[played]) {
                                 user_success = 1;
@@ -400,7 +404,8 @@ int main(void) {
                         }
                         break;
                     case TONE4_Elow:
-                        if (pb_rising_edge & PIN7_bm) {
+                        if ((pb_rising_edge & PIN7_bm) || (sym_state == S4_SYM)) {
+                            sym_state = AWAIT_SYM;
                             u[played] = 4;
                             if (u[played] == c[played]) {
                                 user_success = 1;
@@ -446,6 +451,7 @@ int main(void) {
                 }
                 if ((count >= playback_delay)) {
                     playing_state = NOT_PLAYING;
+                    rx = '\0';
                     buzzer_off();
                     tone_state = WAIT;
                     sequence_length++;
@@ -482,4 +488,50 @@ ISR(TCB0_INT_vect) { // EXT5 (?)
     count++;
 
     TCB0.INTFLAGS = TCB_CAPT_bm;        // Acknowledge interrupt
+}
+
+ISR(USART0_RXC_vect) {
+    rx = USART0.RXDATAL;
+    USART0.TXDATAL = rx;
+
+    switch (sym_state) {
+        case AWAIT_SYM:
+            if ((rx == 'q') || (rx == '1')) {
+                sym_state = S1_SYM;
+                tone_state = TONE1_Ehigh;
+                buzzer_on(0);
+                spi_write(0b10111110);
+            }
+            else if ((rx == 'w') || (rx == '2')) {
+                sym_state = S2_SYM;
+                tone_state = TONE2_Csharp;
+                buzzer_on(1);
+                spi_write(0b11101011);
+            }
+            else if ((rx == 'e') || (rx == '3')) {
+                sym_state = S3_SYM;
+                tone_state = TONE3_A;
+                buzzer_on(2);
+                spi_write(0b00111110);
+            }
+            else if ((rx == 'r') || (rx == '4')) {
+                sym_state = S4_SYM;
+                tone_state = TONE4_Elow;
+                buzzer_on(3);
+                spi_write(0b01101011);
+            }
+        case S1_SYM:
+            rx = '\0';
+            break;
+        case S2_SYM:
+            rx = '\0';
+            break;
+        case S3_SYM:
+            rx = '\0';
+            break;
+        case S4_SYM:
+            rx = '\0';
+            break;
+        
+    }
 }
