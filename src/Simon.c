@@ -451,7 +451,6 @@ int main(void) {
                 }
                 if ((count >= playback_delay)) {
                     playing_state = NOT_PLAYING;
-                    rx = '\0';
                     buzzer_off();
                     tone_state = WAIT;
                     sequence_length++;
