@@ -28,8 +28,3 @@ void uart_puts(char* string) {
         ptr++;
     }
 }
-
-ISR(USART0_RXC_vect) {
-    char rx = USART0.RXDATAL;
-    USART0.TXDATAL = rx;
-}
