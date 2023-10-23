@@ -165,6 +165,9 @@ int main(void) {
         pb_falling_edge = pb_changed & ~pb_state;
         pb_rising_edge = pb_changed & pb_state;
 
+        int lsn_score = (((1 << 4) - 1) & (sequence_length >> (1 - 1)));
+        int lsn2_score = (((1 << 4) - 1) & (sequence_length >> (5 - 1)));
+
         switch(playing_state) {
             case NOT_PLAYING:
                 switch (tone_state) {
@@ -493,6 +496,82 @@ int main(void) {
                     digit_disp = 0;
                 }
                 if ((count >= playback_delay)) {
+                    playing_state = USER_SCORE;
+                    buzzer_off();
+                    count = 0;
+                }
+                break;
+            case USER_SCORE:
+                if (count < playback_delay) {    
+                    buzzer_success_fail();
+                    if (digit_disp == 0) {
+                        if (lsn_score == 0) {
+                            spi_write(0b00001000);
+                        }
+                        else if (lsn_score == 1) {
+                            spi_write(0b01101011);
+                        }
+                        else if (lsn_score == 2) {
+                            spi_write(0b01000100);
+                        }
+                        else if (lsn_score == 3) {
+                            spi_write(0b01000001);
+                        }
+                        else if (lsn_score == 4) {
+                            spi_write(0b00100011);
+                        }
+                        else if (lsn_score == 5) {
+                            spi_write(0b00010001);
+                        }
+                        else if (lsn_score == 6) {
+                            spi_write(0b00010000);
+                        }
+                        else if (lsn_score == 7) {
+                            spi_write(0b01001011);
+                        }
+                        else if (lsn_score == 8) {
+                            spi_write(0b00000000);
+                        }
+                        else if (lsn_score == 9) {
+                            spi_write(0b00000011);
+                        }
+                        digit_disp = 1;
+                    }
+                    else if (digit_disp == 1) {
+                        if (lsn2_score == 0) {
+                            spi_write(0b10001000);
+                        }
+                        else if (lsn2_score == 1) {
+                            spi_write(0b11101011);
+                        }
+                        else if (lsn2_score == 2) {
+                            spi_write(0b11000100);
+                        }
+                        else if (lsn2_score == 3) {
+                            spi_write(0b11000001);
+                        }
+                        else if (lsn2_score == 4) {
+                            spi_write(0b10100011);
+                        }
+                        else if (lsn2_score == 5) {
+                            spi_write(0b10010001);
+                        }
+                        else if (lsn2_score == 6) {
+                            spi_write(0b10010000);
+                        }
+                        else if (lsn2_score == 7) {
+                            spi_write(0b11001011);
+                        }
+                        else if (lsn2_score == 8) {
+                            spi_write(0b10000000);
+                        }
+                        else if (lsn2_score == 9) {
+                            spi_write(0b10000011);
+                        }
+                        digit_disp = 0;
+                    }
+                }
+                if ((count >= (playback_delay * 2))) {
                     playing_state = NOT_PLAYING;
                     STATE_LSFR = 0x10852565;
                     buzzer_off();
@@ -500,6 +579,9 @@ int main(void) {
                     sequence_length = 1;
                     played = 0;
                     count = 0;
+                }
+                else if (count >= playback_delay) {
+                    buzzer_off();
                 }
                 break;
         }
