@@ -14,11 +14,14 @@
 // #include "initialisation.h"
 
 // Initialise global variables
-uint32_t STATE_LSFR = 0x10852565;           // Pseudo-random sequence seeded by student #
+uint32_t student_num = 0x10852565;
+static uint32_t STATE_LSFR = 0x10852565;           // Pseudo-random sequence seeded by student #
+static uint32_t new_seed = 0;
 uint32_t STEP;
 uint8_t to_play;
 uint8_t result;
-// uint16_t user_score = sequence_length;
+static uint16_t sequence_length = 1;                    // Same as user_score
+static uint16_t played = 0;
 uint8_t correct_tones[256];
 uint8_t user_tones[256];
 uint8_t *c = correct_tones;
@@ -55,7 +58,9 @@ typedef enum {
     S3_SYM,
     S4_SYM,
     INC_FREQ,
-    DEC_FREQ
+    DEC_FREQ,
+    SEED,
+    RESET
 } SYM_STATES;
 
 SYM_STATES sym_state = AWAIT_SYM;
@@ -136,8 +141,6 @@ int main(void) {
     buttons_timer();
     sei();
 
-    static uint16_t played = 0;
-    static uint16_t sequence_length = 1;                    // Same as user_score
     static int user_success = 0;
 
     next();
@@ -211,7 +214,10 @@ int main(void) {
                                 playing_state = PLAYING;
                                 tone_state = WAIT;
                                 played = 0;
-                                STATE_LSFR = 0x10852565;
+                                if (new_seed == 0) {
+                                    STATE_LSFR = 0x10852565;
+                                }
+                                else STATE_LSFR = new_seed;
                                 buzzer_off();
                             }
                         }
@@ -228,7 +234,10 @@ int main(void) {
                                 playing_state = PLAYING;
                                 tone_state = WAIT;
                                 played = 0;
-                                STATE_LSFR = 0x10852565;
+                                if (new_seed == 0) {
+                                    STATE_LSFR = 0x10852565;
+                                }
+                                else STATE_LSFR = new_seed;
                                 buzzer_off();
                             }
                         }
@@ -245,7 +254,10 @@ int main(void) {
                                 playing_state = PLAYING;
                                 tone_state = WAIT;
                                 played = 0;
-                                STATE_LSFR = 0x10852565;
+                                if (new_seed == 0) {
+                                    STATE_LSFR = 0x10852565;
+                                }
+                                else STATE_LSFR = new_seed;
                                 buzzer_off();
                             }
                         }
@@ -262,7 +274,10 @@ int main(void) {
                                 playing_state = PLAYING;
                                 tone_state = WAIT;
                                 played = 0;
-                                STATE_LSFR = 0x10852565;
+                                if (new_seed == 0) {
+                                    STATE_LSFR = 0x10852565;
+                                }
+                                else STATE_LSFR = new_seed;
                                 buzzer_off();
                             }
                         }
@@ -273,13 +288,19 @@ int main(void) {
                 }
                 break;
             case PLAYING:
-                STATE_LSFR = 0x10852565;
+                if (new_seed == 0) {
+                    STATE_LSFR = 0x10852565;
+                }
+                else STATE_LSFR = new_seed;
                 for (int i = 0; i < sequence_length; i++) {
                     next();
                     tone_sequence(&STEP);
                     c[i] = to_play;
                 }
-                STATE_LSFR = 0x10852565;
+                if (new_seed == 0) {
+                    STATE_LSFR = 0x10852565;
+                }
+                else STATE_LSFR = new_seed;
                 next();
                 tone_sequence(&STEP);
                 count = 0;
@@ -492,9 +513,12 @@ ISR(TCB0_INT_vect) { // EXT5 (?)
     TCB0.INTFLAGS = TCB_CAPT_bm;        // Acknowledge interrupt
 }
 
+#define NOT_RECEIVING_SEED 0xFF;
 ISR(USART0_RXC_vect) {
     rx = USART0.RXDATAL;
     USART0.TXDATAL = rx;
+    static char rxbuf[9];
+    static uint8_t rxpos = NOT_RECEIVING_SEED;
 
     switch (sym_state) {
         case AWAIT_SYM:
@@ -530,6 +554,20 @@ ISR(USART0_RXC_vect) {
                 sym_state = DEC_FREQ;
                 dec_octave();
             }
+            else if ((rx == '9') || (rx == 'o')) {
+                sym_state = SEED;
+                rxpos = 0;
+            }
+            else if ((rx == '0') || (rx == 'p')) {
+                sym_state = RESET;
+                reset_octave();
+                sequence_length = 1;
+                playing_state = NOT_PLAYING;
+                tone_state = WAIT;
+                played = 0;
+                count = 0;
+
+            }
         case S1_SYM:
             rx = '\0';
             break;
@@ -548,6 +586,20 @@ ISR(USART0_RXC_vect) {
         case DEC_FREQ:
             rx = '\0';
             break;
-        
+        case SEED:
+            rxbuf[rxpos++] = rx;
+            if (rxpos == 8) {
+                rxpos = NOT_RECEIVING_SEED;
+                rxbuf[8] = '\0';
+                if (sscanf(rxbuf, "%x", &new_seed) == 1) {
+                    STATE_LSFR = new_seed;
+                }
+                sym_state = AWAIT_SYM;
+                rx = '\0';
+            }
+            break;
+        case RESET:
+            rx = '\0';
+            break;
     }
 }
