@@ -5,11 +5,6 @@
 #include "spi.h"
 #include "uart.h"
 
-// Values used to write to the TCA0.SINGLE.PERBUF register
-#define TONE1_Ehigh_PER 9559
-#define TONE2_Csharp_PER 11368
-#define TONE3_A_PER 7161
-#define TONE4_Elow_PER 19118
 #define MIN_OCTAVE 1
 #define MAX_OCTAVE 9
 
@@ -17,7 +12,6 @@ static volatile uint8_t octave = 4;
 
 void buzzer_on(const uint8_t tone) { // Tutorial 12
     spi_init();
-    static const uint16_t periods[4] = {TONE1_Ehigh_PER, TONE2_Csharp_PER, TONE3_A_PER, TONE4_Elow_PER};
     if (tone == 0) {
         // spi_write(0b10111110);
         TCA0.SINGLE.PERBUF = 76472u >> (octave - 1);
