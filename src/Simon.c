@@ -543,11 +543,9 @@ ISR(USART0_RXC_vect) {
             rx = '\0';
             break;
         case INC_FREQ:
-            sym_state = AWAIT_SYM;
             rx = '\0';
             break;
         case DEC_FREQ:
-            sym_state = AWAIT_SYM;
             rx = '\0';
             break;
         
