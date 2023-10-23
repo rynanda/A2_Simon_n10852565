@@ -27,7 +27,6 @@ void buzzer_on(const uint8_t tone) { // Tutorial 12
     }
     else if (tone == 1) {
         // spi_write(0b11101011);
-        uart_putc(octave + '0');
         TCA0.SINGLE.PERBUF = 90944u >> (octave - 1);
         TCA0.SINGLE.CMP1BUF = TCA0.SINGLE.PERBUF;
         TCA0.SINGLE.CMP0BUF = (TCA0.SINGLE.PERBUF >> 1);
