@@ -30,6 +30,10 @@ static uint32_t playback_delay;
 static uint16_t count = 0;
 static int digit_disp = 0;
 static char rx;
+static char name[21];
+static int high_scores[5][2];
+static int high_score_names = 1;
+static int recv_high_scores = 0;
 
 typedef enum { // Tutorial 10, Tutorial 12
     WAIT = 0,
@@ -46,7 +50,8 @@ typedef enum {
     PLAYING,
     SUCCESS_DISP,
     FAIL_DISP,
-    USER_SCORE
+    USER_SCORE,
+    HIGH_SCORES
 } PLAYING_STATES;
 
 PLAYING_STATES playing_state = NOT_PLAYING;
@@ -60,7 +65,8 @@ typedef enum {
     INC_FREQ,
     DEC_FREQ,
     SEED,
-    RESET
+    RESET,
+    NAME
 } SYM_STATES;
 
 SYM_STATES sym_state = AWAIT_SYM;
@@ -572,6 +578,32 @@ int main(void) {
                     }
                 }
                 if ((count >= (playback_delay * 2))) {
+                    playing_state = HIGH_SCORES;
+                    recv_high_scores = 1;
+                    uart_puts("Enter name: ");
+                    buzzer_off();
+                    count = 0;
+                }
+                else if (count >= playback_delay) {
+                    buzzer_off();
+                }
+                break;
+            case HIGH_SCORES:
+                if (recv_high_scores == 0) {
+                    if (high_score_names <= 5) {
+                        high_scores[high_score_names][1] = name;
+                        high_scores[high_score_names][2] = sequence_length;
+                    }
+                    uart_putc('\n');
+                    for (int i = 0; i < high_score_names; i++) {
+                        uart_puts(high_scores[i + 1][1]);
+                        uart_puts(" ");
+                        uart_putc(high_scores[i + 1][2] + '0');
+                        uart_putc('\n');
+                    }
+
+                    uart_putc('\n');
+                    high_score_names++;
                     playing_state = NOT_PLAYING;
                     STATE_LSFR = 0x10852565;
                     buzzer_off();
@@ -580,10 +612,7 @@ int main(void) {
                     played = 0;
                     count = 0;
                 }
-                else if (count >= playback_delay) {
-                    buzzer_off();
-                }
-                break;
+
         }
     }
 }
@@ -602,86 +631,112 @@ ISR(USART0_RXC_vect) {
     static char rxbuf[9];
     static uint8_t rxpos = NOT_RECEIVING_SEED;
 
-    switch (sym_state) {
-        case AWAIT_SYM:
-            if ((rx == 'q') || (rx == '1')) {
-                sym_state = S1_SYM;
-                tone_state = TONE1_Ehigh;
-                buzzer_on(0);
-                spi_write(0b10111110);
-            }
-            else if ((rx == 'w') || (rx == '2')) {
-                sym_state = S2_SYM;
-                tone_state = TONE2_Csharp;
-                buzzer_on(1);
-                spi_write(0b11101011);
-            }
-            else if ((rx == 'e') || (rx == '3')) {
-                sym_state = S3_SYM;
-                tone_state = TONE3_A;
-                buzzer_on(2);
-                spi_write(0b00111110);
-            }
-            else if ((rx == 'r') || (rx == '4')) {
-                sym_state = S4_SYM;
-                tone_state = TONE4_Elow;
-                buzzer_on(3);
-                spi_write(0b01101011);
-            }
-            else if ((rx == ',') || (rx == 'k')) {
-                sym_state = INC_FREQ;
-                inc_octave();
-            }
-            else if ((rx == '.') || (rx == 'l')) {
-                sym_state = DEC_FREQ;
-                dec_octave();
-            }
-            else if ((rx == '9') || (rx == 'o')) {
-                sym_state = SEED;
-                rxpos = 0;
-            }
-            else if ((rx == '0') || (rx == 'p')) {
-                sym_state = RESET;
-                reset_octave();
-                sequence_length = 1;
-                playing_state = NOT_PLAYING;
-                tone_state = WAIT;
-                played = 0;
-                count = 0;
-
-            }
-        case S1_SYM:
-            rx = '\0';
-            break;
-        case S2_SYM:
-            rx = '\0';
-            break;
-        case S3_SYM:
-            rx = '\0';
-            break;
-        case S4_SYM:
-            rx = '\0';
-            break;
-        case INC_FREQ:
-            rx = '\0';
-            break;
-        case DEC_FREQ:
-            rx = '\0';
-            break;
-        case SEED:
-            rxbuf[rxpos++] = rx;
-            if (rxpos == 8) {
-                rxpos = NOT_RECEIVING_SEED;
-                rxbuf[8] = '\0';
-                if (sscanf(rxbuf, "%x", &new_seed) == 1) {
-                    STATE_LSFR = new_seed;
+    if (recv_high_scores == 0) {
+        switch (sym_state) {
+            case AWAIT_SYM:
+                if ((rx == 'q') || (rx == '1')) {
+                    sym_state = S1_SYM;
+                    tone_state = TONE1_Ehigh;
+                    buzzer_on(0);
+                    spi_write(0b10111110);
                 }
-                sym_state = AWAIT_SYM;
+                else if ((rx == 'w') || (rx == '2')) {
+                    sym_state = S2_SYM;
+                    tone_state = TONE2_Csharp;
+                    buzzer_on(1);
+                    spi_write(0b11101011);
+                }
+                else if ((rx == 'e') || (rx == '3')) {
+                    sym_state = S3_SYM;
+                    tone_state = TONE3_A;
+                    buzzer_on(2);
+                    spi_write(0b00111110);
+                }
+                else if ((rx == 'r') || (rx == '4')) {
+                    sym_state = S4_SYM;
+                    tone_state = TONE4_Elow;
+                    buzzer_on(3);
+                    spi_write(0b01101011);
+                }
+                else if ((rx == ',') || (rx == 'k')) {
+                    sym_state = INC_FREQ;
+                    inc_octave();
+                }
+                else if ((rx == '.') || (rx == 'l')) {
+                    sym_state = DEC_FREQ;
+                    dec_octave();
+                }
+                else if ((rx == '9') || (rx == 'o')) {
+                    sym_state = SEED;
+                    rxpos = 0;
+                }
+                else if ((rx == '0') || (rx == 'p')) {
+                    sym_state = RESET;
+                    reset_octave();
+                    sequence_length = 1;
+                    playing_state = NOT_PLAYING;
+                    tone_state = WAIT;
+                    played = 0;
+                    count = 0;
+                }
+            case S1_SYM:
                 rx = '\0';
-            }
-            break;
-        case RESET:
-            rx = '\0';
-            break;
+                break;
+            case S2_SYM:
+                rx = '\0';
+                break;
+            case S3_SYM:
+                rx = '\0';
+                break;
+            case S4_SYM:
+                rx = '\0';
+                break;
+            case INC_FREQ:
+                rx = '\0';
+                break;
+            case DEC_FREQ:
+                rx = '\0';
+                break;
+            case SEED:
+                rxbuf[rxpos++] = rx;
+                if (rxpos == 8) {
+                    rxpos = NOT_RECEIVING_SEED;
+                    rxbuf[8] = '\0';
+                    if (sscanf(rxbuf, "%x", &new_seed) == 1) {
+                        STATE_LSFR = new_seed;
+                    }
+                    sym_state = AWAIT_SYM;
+                    rx = '\0';
+                }
+                break;
+            case RESET:
+                rx = '\0';
+                break;
+        }
+    }
+    else if (recv_high_scores == 1) {
+        switch (sym_state) {
+            case AWAIT_SYM:
+                sym_state = NAME;
+                rxpos = 0;
+                break;
+            case NAME:
+                name[rxpos++] = rx;
+                if (rx == 'n') {
+                    rxpos = NOT_RECEIVING_SEED;
+                    name[rxpos] = '\0';
+                    sym_state = AWAIT_SYM;
+                    rx = '\0';
+                    recv_high_scores = 0;
+                }
+                else if (rxpos == 20) {
+                    rxpos = NOT_RECEIVING_SEED;
+                    name[20] = '\0';
+                    sym_state = AWAIT_SYM;
+                    rx = '\0';
+                    recv_high_scores = 0;
+                }
+                break;
+        }
     }
 }
