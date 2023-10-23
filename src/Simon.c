@@ -49,11 +49,13 @@ typedef enum {
 PLAYING_STATES playing_state = NOT_PLAYING;
 
 typedef enum {
-    AWAIT_SYM = '\n',
-    S1_SYM = 'q',
-    S2_SYM = 'w',
-    S3_SYM = 'e',
-    S4_SYM = 'r'
+    AWAIT_SYM,
+    S1_SYM,
+    S2_SYM,
+    S3_SYM,
+    S4_SYM,
+    INC_FREQ,
+    DEC_FREQ
 } SYM_STATES;
 
 SYM_STATES sym_state = AWAIT_SYM;
@@ -151,8 +153,6 @@ int main(void) {
         uint8_t pb_changed;
         uint8_t pb_falling_edge;
         uint8_t pb_rising_edge;
-
-        // uart_putc((u[played] + '0'));
 
         pb_state_prev = pb_state;
         pb_state = pb_debounced_state;
@@ -283,6 +283,9 @@ int main(void) {
                 next();
                 tone_sequence(&STEP);
                 count = 0;
+                if ((sym_state == INC_FREQ) || (sym_state == DEC_FREQ)) {
+                    sym_state = AWAIT_SYM;
+                }
 
                 switch(tone_state) {
                     case WAIT:
@@ -519,6 +522,14 @@ ISR(USART0_RXC_vect) {
                 buzzer_on(3);
                 spi_write(0b01101011);
             }
+            else if ((rx == ',') || (rx == 'k')) {
+                sym_state = INC_FREQ;
+                inc_octave();
+            }
+            else if ((rx == '.') || (rx == 'l')) {
+                sym_state = DEC_FREQ;
+                dec_octave();
+            }
         case S1_SYM:
             rx = '\0';
             break;
@@ -529,6 +540,14 @@ ISR(USART0_RXC_vect) {
             rx = '\0';
             break;
         case S4_SYM:
+            rx = '\0';
+            break;
+        case INC_FREQ:
+            sym_state = AWAIT_SYM;
+            rx = '\0';
+            break;
+        case DEC_FREQ:
+            sym_state = AWAIT_SYM;
             rx = '\0';
             break;
         
