@@ -66,3 +66,7 @@ void dec_octave(void) {
         octave--;
     }
 }
+
+void reset_octave(void) {
+    octave = 4;
+}
