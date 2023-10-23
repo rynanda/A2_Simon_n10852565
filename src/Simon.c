@@ -30,9 +30,14 @@ static uint32_t playback_delay;
 static uint16_t count = 0;
 static int digit_disp = 0;
 static char rx;
-static char name[21];
-static int high_scores[5][2];
-static int high_score_names = 1;
+static char first[21];
+static char second[21];
+static char third[21];
+static char fourth[21];
+static char fifth[21];
+char* high_score_names[];
+static int high_scores[5];
+static int high_scores_num = 1;
 static int recv_high_scores = 0;
 
 typedef enum { // Tutorial 10, Tutorial 12
@@ -66,7 +71,12 @@ typedef enum {
     DEC_FREQ,
     SEED,
     RESET,
-    NAME
+    FIRST,
+    SECOND,
+    THIRD,
+    FOURTH,
+    FIFTH,
+    END
 } SYM_STATES;
 
 SYM_STATES sym_state = AWAIT_SYM;
@@ -487,6 +497,9 @@ int main(void) {
                     buzzer_off();
                     tone_state = WAIT;
                     sequence_length++;
+                    uart_puts("SUCCESS\n");
+                    uart_putc(sequence_length + '0');
+                    uart_putc('\n');
                     played = 0;
                     count = 0;
                 }
@@ -503,6 +516,9 @@ int main(void) {
                 }
                 if ((count >= playback_delay)) {
                     playing_state = USER_SCORE;
+                    uart_puts("GAME OVER\n");
+                    uart_putc(sequence_length + '0');
+                    uart_putc('\n');
                     buzzer_off();
                     count = 0;
                 }
@@ -590,20 +606,32 @@ int main(void) {
                 break;
             case HIGH_SCORES:
                 if (recv_high_scores == 0) {
-                    if (high_score_names <= 5) {
-                        high_scores[high_score_names][1] = name;
-                        high_scores[high_score_names][2] = sequence_length;
+                    if (high_scores_num == 1) {
+                        high_score_names[high_scores_num - 1] = first;
                     }
+                    else if (high_scores_num == 2) {
+                        high_score_names[high_scores_num - 1] = second;
+                    }
+                    else if (high_scores_num == 3) {
+                        high_score_names[high_scores_num - 1] = third;
+                    }
+                    else if (high_scores_num == 4) {
+                        high_score_names[high_scores_num - 1] = fourth;
+                    }
+                    else if (high_scores_num == 5) {
+                        high_score_names[high_scores_num - 1] = fifth;
+                    }
+                    high_scores[high_scores_num - 1] = sequence_length;
                     uart_putc('\n');
-                    for (int i = 0; i < high_score_names; i++) {
-                        uart_puts(high_scores[i + 1][1]);
+
+                    for (int i = 0; i < high_scores_num; i++) {
+                        uart_puts(high_score_names[i]);
                         uart_puts(" ");
-                        uart_putc(high_scores[i + 1][2] + '0');
+                        uart_putc(high_scores[i] + '0');
                         uart_putc('\n');
                     }
 
-                    uart_putc('\n');
-                    high_score_names++;
+                    high_scores_num++;
                     playing_state = NOT_PLAYING;
                     STATE_LSFR = 0x10852565;
                     buzzer_off();
@@ -627,8 +655,9 @@ ISR(TCB0_INT_vect) { // EXT5 (?)
 #define NOT_RECEIVING_SEED 0xFF;
 ISR(USART0_RXC_vect) {
     rx = USART0.RXDATAL;
-    USART0.TXDATAL = rx;
+    // USART0.TXDATAL = rx;
     static char rxbuf[9];
+    static char prev;
     static uint8_t rxpos = NOT_RECEIVING_SEED;
 
     if (recv_high_scores == 0) {
@@ -714,28 +743,116 @@ ISR(USART0_RXC_vect) {
                 break;
         }
     }
-    else if (recv_high_scores == 1) {
+    else if (recv_high_scores != 0) {
         switch (sym_state) {
             case AWAIT_SYM:
-                sym_state = NAME;
-                rxpos = 0;
+                prev = rx;
+                if (high_scores_num == 1) {
+                    sym_state = FIRST;
+                    first[0] = prev;
+                }
+                else if (high_scores_num == 2) {
+                    sym_state = SECOND;
+                    second[0] = prev;
+                }
+                else if (high_scores_num == 3) {
+                    sym_state = THIRD;
+                    third[0] = prev;
+                }
+                else if (high_scores_num == 4) {
+                    sym_state = FOURTH;
+                    fourth[0] = prev;
+                }
+                else if (high_scores_num == 5) {
+                    sym_state = FIFTH;
+                    fifth[0] = prev;
+                }
+                rxpos = 1;
                 break;
-            case NAME:
-                name[rxpos++] = rx;
-                if (rx == 'n') {
+            case FIRST:
+                if (rx == '\n') {
+                    first[rxpos] = '\0';
                     rxpos = NOT_RECEIVING_SEED;
-                    name[rxpos] = '\0';
                     sym_state = AWAIT_SYM;
                     rx = '\0';
                     recv_high_scores = 0;
                 }
                 else if (rxpos == 20) {
                     rxpos = NOT_RECEIVING_SEED;
-                    name[20] = '\0';
+                    first[20] = '\0';
                     sym_state = AWAIT_SYM;
                     rx = '\0';
                     recv_high_scores = 0;
                 }
+                else first[rxpos++] = rx;
+                break;
+            case SECOND:
+                if (rx == '\n') {
+                    second[rxpos] = '\0';
+                    rxpos = NOT_RECEIVING_SEED;
+                    sym_state = AWAIT_SYM;
+                    rx = '\0';
+                    recv_high_scores = 0;
+                }
+                else if (rxpos == 20) {
+                    rxpos = NOT_RECEIVING_SEED;
+                    second[20] = '\0';
+                    sym_state = AWAIT_SYM;
+                    rx = '\0';
+                    recv_high_scores = 0;
+                }
+                else second[rxpos++] = rx;
+                break;
+            case THIRD:
+                if (rx == '\n') {
+                    third[rxpos] = '\0';
+                    rxpos = NOT_RECEIVING_SEED;
+                    sym_state = AWAIT_SYM;
+                    rx = '\0';
+                    recv_high_scores = 0;
+                }
+                else if (rxpos == 20) {
+                    rxpos = NOT_RECEIVING_SEED;
+                    third[20] = '\0';
+                    sym_state = AWAIT_SYM;
+                    rx = '\0';
+                    recv_high_scores = 0;
+                }
+                else third[rxpos++] = rx;
+                break;
+            case FOURTH:
+                if (rx == '\n') {
+                    fourth[rxpos] = '\0';
+                    rxpos = NOT_RECEIVING_SEED;
+                    sym_state = AWAIT_SYM;
+                    rx = '\0';
+                    recv_high_scores = 0;
+                }
+                else if (rxpos == 20) {
+                    rxpos = NOT_RECEIVING_SEED;
+                    fourth[20] = '\0';
+                    sym_state = AWAIT_SYM;
+                    rx = '\0';
+                    recv_high_scores = 0;
+                }
+                else fourth[rxpos++] = rx;
+                break;
+            case FIFTH:
+                if (rx == '\n') {
+                    fifth[rxpos] = '\0';
+                    rxpos = NOT_RECEIVING_SEED;
+                    sym_state = AWAIT_SYM;
+                    rx = '\0';
+                    recv_high_scores = 0;
+                }
+                else if (rxpos == 20) {
+                    rxpos = NOT_RECEIVING_SEED;
+                    fifth[20] = '\0';
+                    sym_state = AWAIT_SYM;
+                    rx = '\0';
+                    recv_high_scores = 0;
+                }
+                else fifth[rxpos++] = rx;
                 break;
         }
     }
