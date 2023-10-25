@@ -7,11 +7,11 @@
 #include <stdint.h>
 #include "uart.h"
 #include "spi.h"
-// #include "timer.h"
+#include "timer.h"
+#include "pwm.h"
+#include "adc.h"
 #include "buttons.h"
 #include "buzzer.h"
-// #include "qutyserial.h"
-// #include "initialisation.h"
 
 // Initialise global variables
 uint32_t student_num = 0x10852565;
@@ -26,8 +26,10 @@ uint8_t correct_tones[256];
 uint8_t user_tones[256];
 uint8_t *c = correct_tones;
 uint8_t *u = user_tones;
+int ones_score;
+int tens_score;
+static int user_success = 0;
 static uint32_t playback_delay;
-static uint16_t count = 0;
 static int digit_disp = 0;
 static char rx;
 static char first[21];
@@ -81,7 +83,7 @@ typedef enum {
 
 SYM_STATES sym_state = AWAIT_SYM;
 
-// Generate next sequence (tutorial 6)
+// Generate next sequence
 void next(void) {
     int BIT = (STATE_LSFR & 1);             // BIT <- lsbit(STATE_LSFR)
     STATE_LSFR >>= 1;                       // STATE_LSFR <- STATE_LSFR >> 1
@@ -105,46 +107,6 @@ void tone_sequence(uint32_t *number) {
     }
 }
 
-void pwm_init(void) { // Tutorial 8
-    PORTB_DIRSET = PIN1_bm | PIN0_bm;                   // Enable PB1 (DISP EN) and PB0 (BUZZER) as outputs
-    TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV1_gc;      // CLK_PER select, /1 prescaler (3.33 MHz)
-    TCA0.SINGLE.CTRLB = TCA_SINGLE_WGMODE_SINGLESLOPE_gc | TCA_SINGLE_CMP1EN_bm | TCA_SINGLE_CMP0EN_bm; // Single-slope PWM mode, WO1 and WO0 enable
-    TCA0.SINGLE.PER = 7161;                             // 465 Hz (A) is ~7161.29 clocks @ 3.33 MHz
-    TCA0.SINGLE.CMP1 = 0;                               // off initially, Maximum brightness -> 100% duty cycle
-    TCA0.SINGLE.CMP0 = 0;                               // BUZZER off initially -> 0% duty cycle || Max loudness = 50% duty cycle
-    TCA0.SINGLE.CTRLA |= TCA_SINGLE_ENABLE_bm;          // Enable TCA0
-
-    /* 
-        Modify with PERBUF, CMP1BUF, and CMP0BUF later based on next sequence/tone to play.
-        E(high) = 465 ∗ 2^(−5/12) = 348.3563954 Hz ~ 348 Hz -> PERBUF = 9559, CMP1BUF = 9559, CMP0BUF = 9559/2
-        C# = 465∗ 2^(−8/12) = 292.9316441 Hz ~ 293 Hz -> PERBUF = 11368, CMP1BUF = 11368, CMP0BUF = 11368/2
-        A = 465 Hz -> PERBUF = 7161, CMP1BUF = 7161, CMP0BUF = 7161/2
-        E(low) = 465∗ 2^(−17/12) = 174.1781977 Hz ~ 174 Hz -> PERBUF = 19118, CMP1BUF = 19118, CMP0BUF = 19118/2
-
-        TONE1 | 465 * 2^(-5/12) = 348.3564 = 348    | Segments EF (LHS) = 0b10111110
-        TONE2 | 465 * 2^(-8/12) = 292.9316 = 293    | Segments BC (LHS) = 0b11101011
-        TONE3 | 465                                 | Segments EF (RHS) = 0b00111110
-        TONE4 | 465 * 2^(-17/12) = 174.1782 = 174   | Segments BC (RHS) = 0b01101011
-    */
-}
-
-void adc_init(void) { // Tutorial 8 // For playback delay -> scaling to between 0.25 and 2 seconds, increase delay = clockwise, vice versa
-    ADC0.CTRLA = ADC_ENABLE_bm;                                         // Enable ADC
-    ADC0.CTRLB = ADC_PRESC_DIV2_gc;                                     // /2 clock prescaler
-    ADC0.CTRLC = (4 << ADC_TIMEBASE_gp) | ADC_REFSEL_VDD_gc;
-    ADC0.CTRLE = 64;                                                    // Sample duration 64
-    ADC0.CTRLF = ADC_FREERUN_bm;                                        // Free running mode
-    ADC0.MUXPOS = ADC_MUXPOS_AIN2_gc;                                   // Select AIN2 (potentiometer R1)
-    ADC0.COMMAND = ADC_MODE_SINGLE_8BIT_gc | ADC_START_IMMEDIATE_gc;    // 8-bit single conversion mode, start sampling immediately
-}
-
-void timer_init(void) { //  Tutorial 9
-    TCB0.CTRLB = TCB_CNTMODE_INT_gc;
-    TCB0.CCMP = 3333;                   // Set interval for 1ms (3333 clocks @ 3.3 MHz)
-    TCB0.INTCTRL = TCB_CAPT_bm;         // CAPT interrupt enable
-    TCB0.CTRLA = TCB_ENABLE_bm;         // Enable
-}
-
 int main(void) {
     
     cli();
@@ -156,8 +118,6 @@ int main(void) {
     timer_init();
     buttons_timer();
     sei();
-
-    static int user_success = 0;
 
     next();
     tone_sequence(&STEP);
@@ -180,9 +140,6 @@ int main(void) {
 
         pb_falling_edge = pb_changed & ~pb_state;
         pb_rising_edge = pb_changed & pb_state;
-
-        int lsn_score = (((1 << 4) - 1) & (sequence_length >> (1 - 1)));
-        int lsn2_score = (((1 << 4) - 1) & (sequence_length >> (5 - 1)));
 
         switch(playing_state) {
             case NOT_PLAYING:
@@ -524,70 +481,81 @@ int main(void) {
                 }
                 break;
             case USER_SCORE:
+                if (sequence_length < 10) {
+                    ones_score = sequence_length;
+                    tens_score = 0;
+                }
+                else {
+                    ones_score = sequence_length;
+                    while (ones_score >= 10) {
+                        ones_score = ones_score - 10;
+                        tens_score = tens_score + 1;
+                    }
+                }
                 if (count < playback_delay) {    
                     buzzer_success_fail();
                     if (digit_disp == 0) {
-                        if (lsn_score == 0) {
+                        if (ones_score == 0) {
                             spi_write(0b00001000);
                         }
-                        else if (lsn_score == 1) {
+                        else if (ones_score == 1) {
                             spi_write(0b01101011);
                         }
-                        else if (lsn_score == 2) {
+                        else if (ones_score == 2) {
                             spi_write(0b01000100);
                         }
-                        else if (lsn_score == 3) {
+                        else if (ones_score == 3) {
                             spi_write(0b01000001);
                         }
-                        else if (lsn_score == 4) {
+                        else if (ones_score == 4) {
                             spi_write(0b00100011);
                         }
-                        else if (lsn_score == 5) {
+                        else if (ones_score == 5) {
                             spi_write(0b00010001);
                         }
-                        else if (lsn_score == 6) {
+                        else if (ones_score == 6) {
                             spi_write(0b00010000);
                         }
-                        else if (lsn_score == 7) {
+                        else if (ones_score == 7) {
                             spi_write(0b01001011);
                         }
-                        else if (lsn_score == 8) {
+                        else if (ones_score == 8) {
                             spi_write(0b00000000);
                         }
-                        else if (lsn_score == 9) {
+                        else if (ones_score == 9) {
                             spi_write(0b00000011);
                         }
                         digit_disp = 1;
                     }
                     else if (digit_disp == 1) {
-                        if (lsn2_score == 0) {
+                        if (tens_score == 0) {
                             spi_write(0b10001000);
                         }
-                        else if (lsn2_score == 1) {
+                        else if (tens_score == 1) {
                             spi_write(0b11101011);
                         }
-                        else if (lsn2_score == 2) {
+                        else if (tens_score == 2) {
                             spi_write(0b11000100);
                         }
-                        else if (lsn2_score == 3) {
+                        else if (tens_score == 3) {
                             spi_write(0b11000001);
                         }
-                        else if (lsn2_score == 4) {
+                        else if (tens_score == 4) {
                             spi_write(0b10100011);
                         }
-                        else if (lsn2_score == 5) {
+                        else if (tens_score == 5) {
                             spi_write(0b10010001);
                         }
-                        else if (lsn2_score == 6) {
+                        else if (tens_score == 6) {
                             spi_write(0b10010000);
                         }
-                        else if (lsn2_score == 7) {
+                        else if (tens_score == 7) {
                             spi_write(0b11001011);
                         }
-                        else if (lsn2_score == 8) {
+                        else if (tens_score == 8) {
                             spi_write(0b10000000);
                         }
-                        else if (lsn2_score == 9) {
+                        else if (tens_score == 9) {
                             spi_write(0b10000011);
                         }
                         digit_disp = 0;
@@ -643,13 +611,6 @@ int main(void) {
 
         }
     }
-}
-
-ISR(TCB0_INT_vect) { // EXT5 (?)
-    
-    count++;
-
-    TCB0.INTFLAGS = TCB_CAPT_bm;        // Acknowledge interrupt
 }
 
 #define NOT_RECEIVING_SEED 0xFF;
