@@ -2,13 +2,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-// typedef enum {
-//     INIT_SYM,
-//     SYM_TWO,
-//     SYM_THREE,
-//     SYM_FOUR
-// }
-
 void uart_init(void) { // EXT6, TUT9
     PORTB.DIRSET = PIN2_bm;                             // Enable PB2 as output (USART0 TXD)
     USART0.BAUD = 1389;                                 // 9600 baud @ 3.3 MHz - 8N1
