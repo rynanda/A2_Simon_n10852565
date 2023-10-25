@@ -9,17 +9,4 @@ void pwm_init(void) {
     TCA0.SINGLE.CMP1 = 0;                               // off initially, Maximum brightness -> 100% duty cycle
     TCA0.SINGLE.CMP0 = 0;                               // BUZZER off initially -> 0% duty cycle || Max loudness = 50% duty cycle
     TCA0.SINGLE.CTRLA |= TCA_SINGLE_ENABLE_bm;          // Enable TCA0
-
-    /* 
-        Modify with PERBUF, CMP1BUF, and CMP0BUF later based on next sequence/tone to play.
-        E(high) = 465 ∗ 2^(−5/12) = 348.3563954 Hz ~ 348 Hz -> PERBUF = 9559, CMP1BUF = 9559, CMP0BUF = 9559/2
-        C# = 465∗ 2^(−8/12) = 292.9316441 Hz ~ 293 Hz -> PERBUF = 11368, CMP1BUF = 11368, CMP0BUF = 11368/2
-        A = 465 Hz -> PERBUF = 7161, CMP1BUF = 7161, CMP0BUF = 7161/2
-        E(low) = 465∗ 2^(−17/12) = 174.1781977 Hz ~ 174 Hz -> PERBUF = 19118, CMP1BUF = 19118, CMP0BUF = 19118/2
-
-        TONE1 | 465 * 2^(-5/12) = 348.3564 = 348    | Segments EF (LHS) = 0b10111110
-        TONE2 | 465 * 2^(-8/12) = 292.9316 = 293    | Segments BC (LHS) = 0b11101011
-        TONE3 | 465                                 | Segments EF (RHS) = 0b00111110
-        TONE4 | 465 * 2^(-17/12) = 174.1782 = 174   | Segments BC (RHS) = 0b01101011
-    */
 }
