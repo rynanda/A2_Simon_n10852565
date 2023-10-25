@@ -1,15 +1,11 @@
 
-#ifndef BUZZER_H
-#define BUZZER_H 1
+// Include headers
+#include <stdint.h>
 
-#include <avr/io.h>
-#include <avr/interrupt.h>
-
+// Function prototypes for buzzer features
 void buzzer_on(const uint8_t tone);
 void buzzer_off(void);
 void buzzer_success_fail(void);
 void inc_octave(void);
 void dec_octave(void);
 void reset_octave(void);
-
-#endif
