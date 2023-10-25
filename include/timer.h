@@ -1,5 +1,6 @@
 
 #include <avr/io.h>
-#include <avr/interrupt.h>
+
+extern volatile uint16_t count;
 
 void timer_init(void);
