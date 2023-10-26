@@ -407,7 +407,7 @@ int main(void) {
                 // Turn on display without turning on buzzer
                 tone_success_fail();
                 
-                // Alternate success pattern left and right for the playback delay
+                // Alternate fail pattern left and right for the playback delay
                 if (digit_disp == 0) {
                     spi_write(FAIL_RIGHT);
                     digit_disp = 1;
